@@ -1,0 +1,58 @@
+# RERO Invenio Base
+# Copyright (C) 2025 RERO.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, version 3 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+name: CI
+on: [push, pull_request, workflow_dispatch]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+        dependencies: ["dev", "deploy"]
+    steps:
+
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+      with:
+        enable-cache: true
+        cache-dependency-glob: uv.lock
+
+    - name: Set up Python
+      run: uv python install ${{ matrix.python-version }}
+
+    - name: Update and install dependencies
+      if: ${{ matrix.dependencies == 'dev' }}
+      run: uv sync --upgrade
+
+    - name: Install locked dependencies
+      if: ${{ matrix.dependencies == 'deploy' }}
+      run: uv sync --frozen
+
+    - name: Run tests
+      run: uv run poe run_tests
+
+    - name: Coverage XML
+      if: ${{ matrix.dependencies == 'dev' }}
+      run: uv run coverage xml
+
+    - name: Coveralls
+      if: ${{ matrix.dependencies == 'dev' }}
+      uses: coverallsapp/github-action@v2
+      with:
+        format: cobertura
