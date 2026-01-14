@@ -1,0 +1,98 @@
+[project]
+name = "rero-invenio-thumbnails"
+version = "0.1.0"
+description = "RERO Invenio Thumbnails."
+readme = "README.rst"
+authors = [{name = "RERO",email = "software@rero.ch"}]
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.9, <3.13"
+
+dependencies = [
+    "flask",
+    "invenio-app>=2.3.0",
+    "invenio-base>=2.4.0",
+    "invenio-cache (>=2.0.0,<3.0.0)",
+    "isbnlib>=3.10.14",
+    "pillow>=11.3.0",
+    "poethepoet>=0.36.0",
+    "requests (>=2.23.0)",
+    "tenacity>=8.0.0",
+    "urllib3 (<2.0.0)",
+]
+
+[project.entry-points."invenio_base.api_blueprints"]
+rero_invenio_thumbnails = "rero_invenio_thumbnails.views:api_thumbnails"
+
+[project.entry-points."invenio_base.app_config"]
+rero_invenio_thumbnails = "rero_invenio_thumbnails.config"
+
+[project.entry-points."invenio_base.apps"]
+rero_invenio_thumbnails = "rero_invenio_thumbnails.ext:REROInvenioThumbnails"
+
+[project.entry-points."rero_invenio_thumbnails.providers"]
+files = "rero_invenio_thumbnails.modules.files.api:FilesProvider"
+"open library" = "rero_invenio_thumbnails.modules.open_library.api:OpenLibraryProvider"
+bnf = "rero_invenio_thumbnails.modules.bnf.api:BnfProvider"
+dnb = "rero_invenio_thumbnails.modules.dnb.api:DnbProvider"
+"google books" = "rero_invenio_thumbnails.modules.google_books.api:GoogleBooksProvider"
+"google api" = "rero_invenio_thumbnails.modules.google_api.api:GoogleApiProvider"
+
+[dependency-groups]
+dev = [
+    "pytest-invenio>=2.1.6",
+    "Sphinx>4.5.0",
+    "pip-audit>=2.8.0",
+    "appnope",
+    "ruff>=0.12.3",
+    "requests-mock>=1.12.0",
+]
+
+[tool.pytest.ini_options]
+addopts = "--color=yes --exclude-warning-annotations --doctest-glob=\"*.rst\" --doctest-modules --cov=rero_invenio_thumbnails --cov-report=term-missing --cov-report=xml --ignore=docs/conf.py"
+testpaths = "docs tests rero_thumbnails"
+# not displaying all the PendingDeprecationWarnings from invenio
+filterwarnings = "ignore::PendingDeprecationWarning"
+
+[tool.coverage.run]
+source = ["rero_invenio_thumbnails"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.ruff]
+extend-exclude = ["config.py", "./docs/conf.py"]
+line-length = 120
+
+[tool.ruff.lint]
+extend-select = ["A", "C4", "DTZ", "INT", "ISC", "T20", "PIE", "Q", "RET", "SIM", "I", "N", "PERF", "W", "D", "F", "UP", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["F821"]  # Allow undefined names in tests (create_test_image is injected via conftest.py)
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"
+
+[tool.poe.tasks]
+format =  {cmd = "ruff format .", help = "Formats all files"}
+lint = {cmd = "ruff check", help = "Checks linting"}
+run_tests = {cmd = "./scripts/tests.sh", help = "Runs all tests"}
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "."
+
+[tool.uv]
+package = true
