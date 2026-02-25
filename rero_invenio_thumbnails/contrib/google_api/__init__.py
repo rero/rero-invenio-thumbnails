@@ -32,12 +32,12 @@ Key Features:
     - Image validation with dimension checks
     - Automatic retry with exponential backoff
 
-Example:
-    >>> from rero_invenio_thumbnails.contrib.google_api.api import GoogleApiProvider
-    >>> provider = GoogleApiProvider()
-    >>> url = provider.get_thumbnail_url('978-0-13-468599-1')
-    >>> print(url)
-    http://books.google.com/books/content?id=abc123&printsec=frontcover&img=1
+Example::
+
+    from rero_invenio_thumbnails.contrib.google_api.api import GoogleApiProvider
+    provider = GoogleApiProvider()
+    url, name = provider.get_thumbnail_url('978-0-13-468599-1')
+    # url == "http://books.google.com/books/content?id=abc123&printsec=frontcover&img=1"
 
 API Documentation:
     - Google Books API: https://developers.google.com/books/docs/v1/using

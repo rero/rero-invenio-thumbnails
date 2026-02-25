@@ -112,13 +112,14 @@ def get_thumbnail_url(isbn: str, cached: bool = True) -> tuple[Optional[str], Op
     :returns: tuple - (url, provider_name) where url is the thumbnail URL or None,
         and provider_name is the string name of the provider that provided the result.
 
-    Examples:
-        >>> url, provider = get_thumbnail_url("9780134685991")
-        >>> print(url, provider)
-        https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg open library
+    Example::
 
-        >>> # Get without caching
-        >>> url, provider = get_thumbnail_url("9780134685991", cached=False)
+        url, provider = get_thumbnail_url("9780134685991")
+        # url == "https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg"
+        # provider == "open library"
+
+        # Get without caching
+        url, provider = get_thumbnail_url("9780134685991", cached=False)
 
     Note:
         The function relies on the "RERO_INVENIO_THUMBNAILS_PROVIDERS" config
@@ -187,17 +188,17 @@ def get_base_urls() -> dict[str, str]:
 
     :returns: dict - Dictionary mapping base URLs to provider names
 
-    Examples:
-        >>> base_urls = get_base_urls()
-        >>> print(base_urls)
-        {
-            'http://catalogue.bnf.fr/couverture': 'bnf',
-            'https://services.dnb.de/sru/dnb': 'dnb',
-            'http://localhost': 'files',
-            'https://www.googleapis.com/books/v1/volumes': 'google api',
-            'https://books.google.com/books': 'google books',
-            'https://covers.openlibrary.org': 'open library'
-        }
+    Example::
+
+        base_urls = get_base_urls()
+        # {
+        #     'http://catalogue.bnf.fr/couverture': 'bnf',
+        #     'https://services.dnb.de/sru/dnb': 'dnb',
+        #     'http://localhost': 'files',
+        #     'https://www.googleapis.com/books/v1/volumes': 'google api',
+        #     'https://books.google.com/books': 'google books',
+        #     'https://covers.openlibrary.org': 'open library'
+        # }
     """
     base_urls: dict[str, str] = {}
     # Get configured providers (same as in get_thumbnail_url)

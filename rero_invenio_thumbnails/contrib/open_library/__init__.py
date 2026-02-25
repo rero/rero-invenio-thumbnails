@@ -33,20 +33,14 @@ Key Features:
     - Automatic retry with exponential backoff
     - Creative Commons licensed covers
 
-Example:
-    >>> from rero_invenio_thumbnails.contrib.open_library.api import OpenLibraryProvider
-    >>>
-    >>> # Default large size
-    >>> provider = OpenLibraryProvider()
-    >>> url = provider.get_thumbnail_url('978-0-13-468599-1')
-    >>> print(url)
-    https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg?default=false
-    >>>
-    >>> # Small size for thumbnails
-    >>> provider_small = OpenLibraryProvider(size='S')
-    >>> url = provider_small.get_thumbnail_url('9780134685991')
-    >>> print(url)
-    https://covers.openlibrary.org/b/isbn/9780134685991-S.jpg?default=false
+Example::
+
+    from rero_invenio_thumbnails.contrib.open_library.api import OpenLibraryProvider
+
+    # Default large size
+    provider = OpenLibraryProvider()
+    url, name = provider.get_thumbnail_url('978-0-13-468599-1')
+    # url == "https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg?default=false"
 
 Configuration:
     size: Cover size code

@@ -31,19 +31,18 @@ Key Features:
     - URL construction for web serving
     - Integration with Flask configuration
 
-Example:
-    >>> from rero_invenio_thumbnails.contrib.files.api import FilesProvider
-    >>> provider = FilesProvider()
-    >>>
-    >>> # Get local file path
-    >>> path = provider.get_thumbnail_path('978-0-13-468599-1')
-    >>> print(path)
-    /var/thumbnails/9780134685991.jpg
-    >>>
-    >>> # Get web URL for serving
-    >>> url = provider.get_thumbnail_url('9780134685991')
-    >>> print(url)
-    https://example.com/thumbnails/9780134685991
+Example::
+
+    from rero_invenio_thumbnails.contrib.files.api import FilesProvider
+    provider = FilesProvider()
+
+    # Get local file path
+    path = provider.get_thumbnail_path('978-0-13-468599-1')
+    # path == "/var/thumbnails/9780134685991.jpg"
+
+    # Get web URL for serving
+    url, name = provider.get_thumbnail_url('9780134685991')
+    # url == "https://example.com/thumbnails/9780134685991"
 
 Configuration:
     RERO_INVENIO_THUMBNAILS_FILES_DIR: Directory path containing thumbnail files

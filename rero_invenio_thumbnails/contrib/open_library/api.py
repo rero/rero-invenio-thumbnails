@@ -59,16 +59,11 @@ class OpenLibraryProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the direct URL to the book
             cover image if found (None otherwise), and provider_name is \"open library\".
 
-        Examples:
-            >>> provider = OpenLibraryProvider()
-            >>> url, provider = provider.get_thumbnail_url("9780134685991")
-            >>> print(url, provider)
-            https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg?default=false open library
-            >>> # Small size example
-            >>> provider_small = OpenLibraryProvider(size="S")
-            >>> url_small, provider = provider_small.get_thumbnail_url("9780134685991")
-            >>> print(url_small, provider)
-            https://covers.openlibrary.org/b/isbn/9780134685991-S.jpg?default=false open library
+        Example::
+
+            provider = OpenLibraryProvider()
+            url, name = provider.get_thumbnail_url("9780134685991")
+            # url == "https://covers.openlibrary.org/b/isbn/9780134685991-L.jpg?default=false"
 
         Note:
             - Uses the public Open Library Covers API (no authentication required).

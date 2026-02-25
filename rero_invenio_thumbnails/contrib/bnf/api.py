@@ -61,13 +61,13 @@ class BnfProvider(BaseProvider):
         :param isbn: The ISBN to convert (ISBN-10 or ISBN-13, with or without hyphens/spaces).
         :returns: str or None - The ARK identifier if found, None otherwise.
 
-        Examples:
-            >>> provider = BnfProvider()
-            >>> ark_id = provider.isbn_to_ark("978-2-07-036028-4")
-            >>> print(ark_id)
-            ark:/12148/cb450989938
-            >>> # Works with clean ISBN too
-            >>> ark_id = provider.isbn_to_ark("9782070360284")
+        Example::
+
+            provider = BnfProvider()
+            ark_id = provider.isbn_to_ark("978-2-07-036028-4")
+            # ark_id == "ark:/12148/cb450989938"
+            # Works with clean ISBN too
+            ark_id = provider.isbn_to_ark("9782070360284")
 
         Note:
             - Uses BNF's SRU (Search/Retrieve via URL) API with UNIMARC XML format.
@@ -121,14 +121,14 @@ class BnfProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the direct URL to the book
             cover image if found (None otherwise), and provider_name is "bnf".
 
-        Examples:
-            >>> provider = BnfProvider()
-            >>> # Using ISBN with hyphens
-            >>> url, provider = provider.get_thumbnail_url("978-2-07-036028-4")
-            >>> print(url, provider)
-            http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1 bnf
-            >>> # Using clean ISBN
-            >>> url, provider = provider.get_thumbnail_url("9782070360284")
+        Example::
+
+            provider = BnfProvider()
+            # Using ISBN with hyphens
+            url, name = provider.get_thumbnail_url("978-2-07-036028-4")
+            # url == "http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
+            # Using clean ISBN
+            url, name = provider.get_thumbnail_url("9782070360284")
 
         Note:
             - Uses the official BNF catalogue API (no authentication required).

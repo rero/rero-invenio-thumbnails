@@ -27,7 +27,9 @@ Features:
     - Comprehensive error handling and logging
 
 Usage:
+    >>> from flask import Flask
     >>> from rero_invenio_thumbnails import REROInvenioThumbnails
+    >>> app = Flask(__name__)
     >>> ext = REROInvenioThumbnails(app)
     >>> # Or: ext = REROInvenioThumbnails(); ext.init_app(app)
 

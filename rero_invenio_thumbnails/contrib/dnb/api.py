@@ -65,11 +65,11 @@ class DnbProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the cover image URL
             if found (None otherwise), and provider_name is "dnb".
 
-        Examples:
-            >>> provider = DnbProvider()
-            >>> url, provider = provider.get_thumbnail_url("9783161484100")
-            >>> print(url, provider)
-            https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100 dnb
+        Example::
+
+            provider = DnbProvider()
+            url, name = provider.get_thumbnail_url("9783161484100")
+            # url == "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100"
 
         Note:
             The DNB may not have cover images for all publications. Availability
