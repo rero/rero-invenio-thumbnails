@@ -30,12 +30,12 @@ Key Features:
     - ISBN cleaning (removes hyphens and spaces)
     - Image validation (dimensions and content type)
 
-Example:
-    >>> from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
-    >>> provider = BnfProvider()
-    >>> url = provider.get_thumbnail_url("978-2-07-036028-4")
-    >>> print(url)
-    http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1
+Example::
+
+    from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
+    provider = BnfProvider()
+    url, name = provider.get_thumbnail_url("978-2-07-036028-4")
+    # url == "http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
 
 API Documentation:
     - SRU API: https://catalogue.bnf.fr/api/SRU

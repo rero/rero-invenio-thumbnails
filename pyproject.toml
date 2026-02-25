@@ -1,9 +1,27 @@
+# ---------------------------------------------------------------------------
+# Build system
+# ---------------------------------------------------------------------------
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-root = "."
+
+[tool.uv]
+package = true
+
+# ---------------------------------------------------------------------------
+# Project metadata
+# ---------------------------------------------------------------------------
+
 [project]
 name = "rero-invenio-thumbnails"
 version = "0.1.0"
 description = "RERO Invenio Thumbnails."
-readme = "README.rst"
-authors = [{name = "RERO",email = "software@rero.ch"}]
+readme = "README.md"
+authors = [{name = "RERO+", email = "software@rero.ch"}]
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
 requires-python = ">=3.9, <3.13"
@@ -14,10 +32,23 @@ dependencies = [
     "invenio-base>=2.4.0",
     "invenio-cache (>=2.0.0,<3.0.0)",
     "pillow>=11.3.0",
-    "poethepoet>=0.36.0",
     "requests (>=2.23.0)",
     "tenacity>=8.0.0",
 ]
+
+[dependency-groups]
+dev = [
+    "poethepoet>=0.36.0",
+    "pytest-invenio>=2.1.6",
+    "pip-audit>=2.8.0",
+    "appnope; sys_platform == 'darwin'",
+    "ruff>=0.12.3",
+    "requests-mock>=1.12.0",
+]
+
+# ---------------------------------------------------------------------------
+# Entry points
+# ---------------------------------------------------------------------------
 
 [project.entry-points."invenio_base.api_blueprints"]
 rero_invenio_thumbnails = "rero_invenio_thumbnails.views:api_thumbnails"
@@ -36,19 +67,18 @@ dnb = "rero_invenio_thumbnails.contrib.dnb.api:DnbProvider"
 "google books" = "rero_invenio_thumbnails.contrib.google_books.api:GoogleBooksProvider"
 "google api" = "rero_invenio_thumbnails.contrib.google_api.api:GoogleApiProvider"
 
-[dependency-groups]
-dev = [
-    "pytest-invenio>=2.1.6",
-    "Sphinx>4.5.0",
-    "pip-audit>=2.8.0",
-    "appnope",
-    "ruff>=0.12.3",
-    "requests-mock>=1.12.0",
-]
+# ---------------------------------------------------------------------------
+# Tool configurations
+# ---------------------------------------------------------------------------
+
+[tool.poe.tasks]
+format = {cmd = "ruff format .", help = "Formats all files"}
+lint = {cmd = "ruff check", help = "Checks linting"}
+run_tests = {cmd = "./scripts/tests.sh", help = "Runs all tests"}
 
 [tool.pytest.ini_options]
-addopts = "--color=yes --exclude-warning-annotations --doctest-glob=\"*.rst\" --doctest-modules --cov=rero_invenio_thumbnails --cov-report=term-missing --cov-report=xml --ignore=docs/conf.py"
-testpaths = "docs tests rero_thumbnails"
+addopts = "--color=yes --exclude-warning-annotations --doctest-modules --cov=rero_invenio_thumbnails --cov-report=term-missing --cov-report=xml"
+testpaths = "tests rero_invenio_thumbnails"
 # not displaying all the PendingDeprecationWarnings from invenio
 filterwarnings = "ignore::PendingDeprecationWarning"
 
@@ -68,7 +98,7 @@ exclude_lines = [
 output = "coverage.xml"
 
 [tool.ruff]
-extend-exclude = ["config.py", "./docs/conf.py"]
+extend-exclude = ["config.py"]
 line-length = 120
 
 [tool.ruff.lint]
@@ -79,18 +109,3 @@ extend-select = ["A", "C4", "DTZ", "INT", "ISC", "T20", "PIE", "Q", "RET", "SIM"
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
-
-[tool.poe.tasks]
-format =  {cmd = "ruff format .", help = "Formats all files"}
-lint = {cmd = "ruff check", help = "Checks linting"}
-run_tests = {cmd = "./scripts/tests.sh", help = "Runs all tests"}
-
-[build-system]
-requires = ["uv_build"]
-build-backend = "uv_build"
-
-[tool.uv.build-backend]
-module-root = "."
-
-[tool.uv]
-package = true

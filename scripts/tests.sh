@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# RERO Thumbnails
-# Copyright (C) 2026 RERO.
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, version 3 of the License.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-# GNU Affero General Public License for more details.
-#
-# You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
-
 
 # Usage:
 #   env DB=postgresql12 SEARCH=opensearch2 CACHE=redis MQ=rabbitmq ./run-tests.sh
@@ -85,13 +70,6 @@ ruff format . --check
 info_msg "Test linting:"
 ruff check
 
-# info_msg "Check manifest:"
-# check-manifest
-
-info_msg "Sphinx build:"
-sphinx-build -qnNW docs docs/_build/html
-
-# Note: for now we do not need this for the tests.
 info_msg "Tests:"
 pytest
 

@@ -138,13 +138,14 @@ def fetch_with_retries(url: str, headers: Optional[dict[str, str]] = None, timeo
     :returns: requests.Response object
     :raises requests.RequestException: If the request fails after all retries.
 
-    Examples:
-        >>> response = fetch_with_retries("https://api.example.com/data")
-        >>> response = fetch_with_retries("https://example.com/image.jpg", timeout=10)
-        >>> response = fetch_with_retries(
-        ...     "https://example.com/api",
-        ...     headers={"User-Agent": "MyApp/1.0"}
-        ... )
+    Example::
+
+        response = fetch_with_retries("https://api.example.com/data")
+        response = fetch_with_retries("https://example.com/image.jpg", timeout=10)
+        response = fetch_with_retries(
+            "https://example.com/api",
+            headers={"User-Agent": "MyApp/1.0"},
+        )
     """
     cfg = _get_retry_config()
 
@@ -182,13 +183,14 @@ def validate_image_content(
     :param min_dimension: Minimum width/height in pixels. Defaults to MIN_IMAGE_DIMENSION.
     :returns: bool - True if the image is valid, False otherwise.
 
-    Examples:
-        >>> content = requests.get("https://example.com/cover.jpg").content
-        >>> if validate_image_content(content, "BNF", "9780134685991"):
-        ...     print("Valid image")
-        >>> # Filter out 1x1 pixel placeholders
-        >>> if validate_image_content(placeholder_data, min_dimension=10):
-        ...     print("Valid image")
+    Example::
+
+        content = requests.get("https://example.com/cover.jpg").content
+        if validate_image_content(content, "BNF", "9780134685991"):
+            print("Valid image")
+        # Filter out 1x1 pixel placeholders
+        if validate_image_content(placeholder_data, min_dimension=10):
+            print("Valid image")
     """
     if not content or len(content) == 0:
         with suppress(Exception):
@@ -228,12 +230,13 @@ def fetch_and_validate_thumbnail(
     :param min_dimension: Minimum width/height in pixels for validation. Defaults to MIN_IMAGE_DIMENSION.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
-    Examples:
-        >>> if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "Provider", "9780134685991"):
-        ...     return url, "provider"
-        >>> # With custom timeout
-        >>> if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "BNF", "978...", timeout=10):
-        ...     return url, "bnf"
+    Example::
+
+        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "Provider", "9780134685991"):
+            return url, "provider"
+        # With custom timeout
+        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "BNF", "978...", timeout=10):
+            return url, "bnf"
 
     Note:
         Uses fetch_with_retries() for HTTP requests, so retry logic is applied.

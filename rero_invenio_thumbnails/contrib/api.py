@@ -78,11 +78,12 @@ class BaseProvider(ABC):
         Raises:
             NotImplementedError: If the subclass doesn't implement this method.
 
-        Examples:
-            >>> provider = MyProvider()
-            >>> url, provider_name = provider.get_thumbnail_url("9780134685991")
-            >>> print(url, provider_name)
-            https://example.com/covers/0134685997.jpg MyProvider
+        Example::
+
+            provider = MyProvider()
+            url, provider_name = provider.get_thumbnail_url("9780134685991")
+            # url == "https://example.com/covers/0134685997.jpg"
+            # provider_name == "MyProvider"
 
         Note:
             Implementations should:

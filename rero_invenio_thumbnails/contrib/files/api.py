@@ -35,9 +35,9 @@ class FilesProvider(BaseProvider):
     def __init__(self):
         """Initialize the Files provider.
 
-        Examples:
-            >>> # Default provider
-            >>> provider = FilesProvider()
+        Example::
+
+            provider = FilesProvider()  # requires active Flask app context
         """
         self.base_url = current_app.config.get("RERO_ILS_URL", "http://localhost")
 
@@ -99,11 +99,11 @@ class FilesProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the HTTPS URL of the
             thumbnail if found (None otherwise), and provider_name is "files".
 
-        Examples:
-            >>> provider = FilesProvider()
-            >>> url, provider = provider.get_thumbnail_url("9780134685991")
-            >>> print(url, provider)
-            https://example.com/thumbnails/9780134685991 files
+        Example::
+
+            provider = FilesProvider()
+            url, name = provider.get_thumbnail_url("9780134685991")
+            # url == "https://example.com/thumbnails/9780134685991"
 
         Note:
             - Returns (None, "files") if thumbnail file is not found

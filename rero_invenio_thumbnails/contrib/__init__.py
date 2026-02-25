@@ -72,19 +72,21 @@ Provider Interface:
                 # :returns: Thumbnail URL if found, None otherwise
                 pass
 
-Usage Pattern:
-    >>> from rero_invenio_thumbnails.contrib.open_library.api import OpenLibraryProvider
-    >>>
-    >>> # Try multiple providers in sequence
-    >>> isbn = '978-0-13-468599-1'
-    >>> providers = [BNFProvider(), OpenLibraryProvider()]
-    >>>
-    >>> for provider in providers:
-    >>>     if url := provider.get_thumbnail_url(isbn):
-    >>>         print(f"Found: {url}")
-    >>>         break
-    >>> else:
-    >>>     print("No thumbnail found")
+Usage Pattern::
+
+    from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
+    from rero_invenio_thumbnails.contrib.open_library.api import OpenLibraryProvider
+
+    # Try multiple providers in sequence
+    isbn = '978-0-13-468599-1'
+    providers = [BnfProvider(), OpenLibraryProvider()]
+
+    for provider in providers:
+        if url := provider.get_thumbnail_url(isbn):
+            print(f"Found: {url}")
+            break
+    else:
+        print("No thumbnail found")
 
 Error Handling:
     All providers use the @handle_provider_errors decorator which:

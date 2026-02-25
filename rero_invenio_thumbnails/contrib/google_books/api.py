@@ -58,11 +58,11 @@ class GoogleBooksProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the preview URL from
             Google Books if available (None otherwise), and provider_name is \"google books\".
 
-        Examples:
-            >>> provider = GoogleBooksProvider()
-            >>> url, provider = provider.get_thumbnail_url("9780134685991")
-            >>> print(url, provider)
-            https://books.google.com/books/about/... google books
+        Example::
+
+            provider = GoogleBooksProvider()
+            url, name = provider.get_thumbnail_url("9780134685991")
+            # url == "https://books.google.com/books/about/..."
 
         Note:
             - Uses JSONP callback format for cross-domain requests.
