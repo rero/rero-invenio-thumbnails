@@ -37,67 +37,41 @@ Example:
                 return f"https://example.com/covers/{isbn}.jpg"
 """
 
+import inspect
 from abc import ABC, abstractmethod
-from typing import Optional
 
 
 class BaseProvider(ABC):
     """Abstract base class for thumbnail providers.
 
-    All thumbnail providers must inherit from this class and implement
-    the `get_thumbnail_url` method. This ensures a consistent interface
-    across all providers.
-
-    The base provider class enforces:
-        - Standardized method signatures
-        - Clear contract for provider implementations
-        - Type hints for better IDE support
-        - Consistent error handling patterns
+    All thumbnail providers must inherit from this class, define a ``name``
+    class attribute, and implement the ``get_thumbnail_url`` method.
 
     Attributes:
-        None by default - subclasses may define their own attributes.
-
-    Methods:
-        get_thumbnail_url: Abstract method that must be implemented by subclasses.
+        name: Unique string identifier for the provider (must be defined by subclass).
     """
 
+    name = ""
+
+    def __init_subclass__(cls, **kwargs):
+        """Validate that subclasses define a non-empty name."""
+        super().__init_subclass__(**kwargs)
+        # Skip validation for abstract intermediate classes
+        if not inspect.isabstract(cls) and (not cls.name or not isinstance(cls.name, str)):
+            raise TypeError(
+                f"Provider class {cls.__module__}.{cls.__name__} must define a non-empty 'name' attribute. "
+                f"Got: {cls.name!r}"
+            )
+
     @abstractmethod
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         """Retrieve thumbnail URL for the given ISBN.
 
-        This method must be implemented by all provider subclasses. It should
-        query the provider's API or service and return a tuple containing the
-        URL and provider name.
-
-        :param isbn: str - The ISBN (International Standard Book Number) to look up.
-            Can be in ISBN-10 or ISBN-13 format. Providers should handle format
-            conversion as needed for their specific API requirements.
-        :returns: tuple - (url, provider_name) where url is the thumbnail URL or None,
-            and provider_name is the string name of the provider.
-
-        Raises:
-            NotImplementedError: If the subclass doesn't implement this method.
-
-        Example::
-
-            provider = MyProvider()
-            url, provider_name = provider.get_thumbnail_url("9780134685991")
-            # url == "https://example.com/covers/0134685997.jpg"
-            # provider_name == "MyProvider"
-
-        Note:
-            Implementations should:
-                - Clean/normalize the ISBN as needed
-                - Handle network errors gracefully
-                - Validate responses before returning URLs
-                - Log warnings for recoverable errors
-                - Return (None, provider_name) for missing thumbnails (not raise exceptions)
+        :param isbn: The ISBN (ISBN-10 or ISBN-13) to look up.
+        :returns: tuple - (url, provider_name) where url is the thumbnail URL or None.
         """
         raise NotImplementedError("Subclasses must implement get_thumbnail_url method.")
 
-    def __repr__(self) -> str:
-        """Return string representation of the provider.
-
-        :returns: str - Class name of the provider
-        """
+    def __repr__(self):
+        """Return string representation of the provider."""
         return f"<{self.__class__.__name__}>"

@@ -25,7 +25,6 @@ from io import BytesIO
 import pytest
 import requests
 from flask import Flask
-from invenio_app.factory import create_app as _create_app
 
 # Ensure invenio-cache is available in tests
 from invenio_cache.ext import InvenioCache
@@ -101,23 +100,14 @@ def no_external_requests(monkeypatch, request):
     monkeypatch.setattr(requests.Session, "request", mock_request)
 
 
-@pytest.fixture(scope="module")
-def app_config(app_config):
-    """Application config override."""
-    return app_config
-
-
-@pytest.fixture(scope="module")
-def create_app(instance_path):
-    """Application factory fixture."""
-    return _create_app
-
-
 @pytest.fixture
 def app():
     """Create a Flask application for testing."""
     app = Flask(__name__)
     app.config["TESTING"] = True
+
+    # Disable HTTP retries for all tests
+    app.config["RERO_INVENIO_THUMBNAILS_RETRY_ENABLED"] = False
 
     # Set empty providers by default for tests (tests configure explicitly)
     app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []

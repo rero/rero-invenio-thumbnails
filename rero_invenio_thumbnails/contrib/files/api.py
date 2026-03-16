@@ -16,11 +16,9 @@
 """Thumbnails Files."""
 
 import os
-from typing import Optional
 
 from flask import current_app
 
-from rero_invenio_thumbnails.config import PROVIDER_FILES
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import clean_isbn, handle_provider_errors
 
@@ -32,6 +30,8 @@ class FilesProvider(BaseProvider):
     supporting integration with the Invenio Files system.
     """
 
+    name = "files"
+
     def __init__(self):
         """Initialize the Files provider.
 
@@ -39,9 +39,9 @@ class FilesProvider(BaseProvider):
 
             provider = FilesProvider()  # requires active Flask app context
         """
-        self.base_url = current_app.config.get("RERO_ILS_URL", "http://localhost")
+        self.base_url = current_app.config.get("RERO_INVENIO_THUMBNAILS_URL", "http://localhost")
 
-    def get_thumbnail_path(self, isbn: str) -> Optional[str]:
+    def get_thumbnail_path(self, isbn):
         """Retrieve the file path for a thumbnail from local file storage.
 
         This method searches the configured files directory for a thumbnail
@@ -88,8 +88,8 @@ class FilesProvider(BaseProvider):
 
         return None
 
-    @handle_provider_errors("Files")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    @handle_provider_errors("files")
+    def get_thumbnail_url(self, isbn):
         """Retrieve the HTTPS URL for a thumbnail from local file storage.
 
         This method searches for a thumbnail file and returns the complete
@@ -114,8 +114,8 @@ class FilesProvider(BaseProvider):
         thumbnail_path = self.get_thumbnail_path(isbn)
 
         if not thumbnail_path:
-            return None, PROVIDER_FILES
+            return None, self.name
 
         # Clean ISBN for URL construction
         clean_isbn_value = clean_isbn(isbn)
-        return f"{self.base_url}/thumbnails/{clean_isbn_value}", PROVIDER_FILES
+        return f"{self.base_url}/thumbnails/{clean_isbn_value}", self.name

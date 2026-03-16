@@ -24,7 +24,6 @@ from typing import Union
 from flask import Blueprint, Response, current_app, jsonify, make_response, request, send_file
 
 from rero_invenio_thumbnails.api import get_thumbnail_url
-from rero_invenio_thumbnails.config import RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE
 from rero_invenio_thumbnails.contrib.files.api import FilesProvider
 
 api_thumbnails = Blueprint("api_thumbnails", __name__, url_prefix="/")
@@ -36,9 +35,7 @@ def add_cache_headers(response: Response) -> Response:
     :param response: Flask response object
     :returns: Modified response with cache headers
     """
-    max_age = current_app.config.get(
-        "RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE", RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE
-    )
+    max_age = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE", 86400)
     if max_age > 0:
         response.headers["Cache-Control"] = f"public, max-age={max_age}"
         response.headers["Vary"] = "Accept-Encoding"

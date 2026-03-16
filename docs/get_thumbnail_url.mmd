@@ -1,0 +1,48 @@
+flowchart TD
+    A([caller]) -->|isbn, cached=True| B[get_thumbnail_url]
+
+    B --> C{cached=True?}
+    C -->|yes| D[build cache_key\nprefix_isbn]
+    D --> E{cache hit?}
+    E -->|yes| F[parse JSON\nurl + provider]
+    F --> Z([return url, provider])
+
+    E -->|no| G
+    C -->|no| G[read PROVIDERS list\nfrom app.config]
+
+    G --> H{providers\nempty?}
+    H -->|yes| Y[return None, None]
+
+    H -->|no| I[for each provider_name]
+    I --> J{name in\nPROVIDERS?}
+    J -->|no – KeyError| K[log warning\nskip]
+    K --> I
+
+    J -->|yes| L[instantiate provider\ncls]
+    L --> M[provider.get_thumbnail_url\nisbn]
+    M -->|exception| N[log error\nskip]
+    N --> I
+
+    M -->|url, provider_name| O{url found?}
+    O -->|no| I
+
+    O -->|yes| P{cached=True?}
+    P -->|yes| Q[cache.set\nJSON url+provider]
+    Q --> Z
+    P -->|no| Z
+
+    I -->|exhausted| R{cached=True?}
+    R -->|yes| S[cache.set\nJSON null+last_provider]
+    S --> T([return None, last_provider])
+    R -->|no| T
+
+    subgraph providers [registered providers – entry points resolved at registry build]
+        BNF[BnfProvider\nbnf]
+        DNB[DnbProvider\ndnb]
+        FILES[FilesProvider\nfiles]
+        GAPI[GoogleApiProvider\ngoogle api]
+        GBOOKS[GoogleBooksProvider\ngoogle books]
+        OL[OpenLibraryProvider\nopen library]
+    end
+
+    L -.->|instantiate from\nPROVIDERS registry| providers

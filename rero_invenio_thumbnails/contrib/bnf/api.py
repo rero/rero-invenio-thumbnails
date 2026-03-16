@@ -15,13 +15,11 @@
 
 """Thumbnails BNF (Bibliothèque nationale de France)."""
 
-from typing import Optional
 from xml.etree import ElementTree
 
 import requests
 from flask import current_app
 
-from rero_invenio_thumbnails.config import PROVIDER_BNF
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
@@ -40,6 +38,8 @@ class BnfProvider(BaseProvider):
     the BnF under legal deposit (since 2010).
     """
 
+    name = "bnf"
+
     def __init__(self):
         """Initialize the BNF provider.
 
@@ -51,7 +51,7 @@ class BnfProvider(BaseProvider):
         self.cover_page = 1  # Cover page to retrieve (1=front cover, 4=back cover).
         self.base_url = "http://catalogue.bnf.fr/couverture"
 
-    def isbn_to_ark(self, isbn: str) -> Optional[str]:
+    def isbn_to_ark(self, isbn):
         """Convert ISBN to ARK identifier using BNF SRU API.
 
         This method queries the BNF catalog via the SRU API to retrieve the ARK
@@ -110,7 +110,7 @@ class BnfProvider(BaseProvider):
         return None
 
     @handle_provider_errors("BNF")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from BNF.
 
         This method uses the BNF catalogue API to retrieve book cover images
@@ -144,13 +144,13 @@ class BnfProvider(BaseProvider):
         ark_id = self.isbn_to_ark(clean_isbn_value)
         if not ark_id:
             # If conversion fails, return None
-            return None, PROVIDER_BNF
+            return None, self.name
 
         # Construct URL with required BNF API parameters
         url = f"{self.base_url}?appName={self.app_name}&idArk={ark_id}&couverture={self.cover_page}"
 
         # Validate the thumbnail URL
         if fetch_and_validate_thumbnail(url, "BNF", clean_isbn_value, timeout=10):  # BNF API is slower
-            return url, PROVIDER_BNF
+            return url, self.name
 
-        return None, PROVIDER_BNF
+        return None, self.name

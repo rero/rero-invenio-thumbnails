@@ -25,33 +25,22 @@ import os
 from contextlib import suppress
 from functools import wraps
 from io import BytesIO
-from typing import Any, Callable, Optional
 
 import requests
 from flask import current_app
 from PIL import Image
 from tenacity import Retrying, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from rero_invenio_thumbnails.config import MIN_IMAGE_DIMENSION
-
-# Disable retries when running under pytest or when explicitly requested via env.
-_RETRY_DISABLE_ENV = os.getenv("RERO_THUMBNAILS_DISABLE_RETRIES", "").lower() in {
+# Disable retries when explicitly requested via env variable.
+_DISABLE_RETRIES = os.getenv("RERO_THUMBNAILS_DISABLE_RETRIES", "").lower() in {
     "1",
     "true",
     "yes",
     "on",
 }
 
-_IN_PYTEST = False
-with suppress(ImportError):
-    import pytest  # noqa: F401
 
-    _IN_PYTEST = True
-
-_DISABLE_RETRIES = _RETRY_DISABLE_ENV or _IN_PYTEST
-
-
-def clean_isbn(isbn: str) -> str:
+def clean_isbn(isbn):
     """Clean ISBN by removing hyphens and spaces.
 
     :param isbn: The ISBN string to clean.
@@ -68,15 +57,15 @@ def clean_isbn(isbn: str) -> str:
     return isbn.replace("-", "").replace(" ", "")
 
 
-def handle_provider_errors(provider_name: str) -> Callable:
+def handle_provider_errors(provider_name):
     """Standardize error handling across providers.
 
     :param provider_name: Name of the provider for logging
     """
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func):
         @wraps(func)
-        def wrapper(self: Any, isbn: str) -> tuple[Optional[str], str]:
+        def wrapper(self, isbn):
             try:
                 return func(self, isbn)
             except ValueError as err:
@@ -98,16 +87,16 @@ def handle_provider_errors(provider_name: str) -> Callable:
     return decorator
 
 
-def _get_retry_config() -> dict[str, Any]:
+def _get_retry_config():
     """Return retry settings from Flask config or defaults."""
-    attempts: int = 5
-    backoff_multiplier: float = 0.5
-    backoff_min: int = 1
-    backoff_max: int = 10
-    enabled: bool = True
+    attempts = 5
+    backoff_multiplier = 0.5
+    backoff_min = 1
+    backoff_max = 10
+    enabled = True
 
     # Outside app context; stick to defaults
-    with suppress(Exception):
+    with suppress(RuntimeError, AttributeError):
         if current_app and current_app.config:
             cfg = current_app.config
             attempts = cfg.get("RERO_INVENIO_THUMBNAILS_RETRY_ATTEMPTS", attempts)
@@ -125,7 +114,7 @@ def _get_retry_config() -> dict[str, Any]:
     }
 
 
-def fetch_with_retries(url: str, headers: Optional[dict[str, str]] = None, timeout: int = 5) -> requests.Response:
+def fetch_with_retries(url, headers=None, timeout=5):
     """Fetch URL with automatic retries on connection errors.
 
     This function makes HTTP GET requests with automatic retry logic for transient
@@ -164,12 +153,10 @@ def fetch_with_retries(url: str, headers: Optional[dict[str, str]] = None, timeo
         reraise=True,
     )
 
-    return retrying.call(requests.get, url, headers=headers, timeout=timeout)
+    return retrying(requests.get, url, headers=headers, timeout=timeout)
 
 
-def validate_image_content(
-    content: bytes, provider_name: str = "", isbn: str = "", min_dimension: int = MIN_IMAGE_DIMENSION
-) -> bool:
+def validate_image_content(content, provider_name="", isbn="", min_dimension=None):
     """Validate that image content is a real image with valid dimensions.
 
     This function checks that the provided content:
@@ -180,7 +167,8 @@ def validate_image_content(
     :param content: The image content as bytes.
     :param provider_name: Name of the provider (for logging). Defaults to "".
     :param isbn: ISBN being processed (for logging). Defaults to "".
-    :param min_dimension: Minimum width/height in pixels. Defaults to MIN_IMAGE_DIMENSION.
+    :param min_dimension: Minimum width/height in pixels. Defaults to
+        ``RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION`` from app config.
     :returns: bool - True if the image is valid, False otherwise.
 
     Example::
@@ -192,31 +180,38 @@ def validate_image_content(
         if validate_image_content(placeholder_data, min_dimension=10):
             print("Valid image")
     """
+    if min_dimension is None:
+        with suppress(AttributeError, RuntimeError):
+            min_dimension = current_app.config.get("RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION")
+        if min_dimension is None:
+            min_dimension = 50
     if not content or len(content) == 0:
-        with suppress(Exception):
+        with suppress(AttributeError, RuntimeError):
             current_app.logger.debug(f"Empty image data from {provider_name} for ISBN {isbn}")
         return False
 
-    with suppress(Exception):
+    try:
         img = Image.open(BytesIO(content))
         width, height = img.size
         # Check for zero dimensions or placeholder images (typically 1x1 pixels)
         if width < min_dimension or height < min_dimension:
-            with suppress(Exception):
+            with suppress(AttributeError, RuntimeError):
                 current_app.logger.debug(
                     f"Invalid or placeholder image dimensions {width}x{height} from {provider_name} for ISBN {isbn}"
                 )
             return False
         return True
+    except (Image.UnidentifiedImageError, OSError) as e:
+        with suppress(AttributeError, RuntimeError):
+            current_app.logger.debug(f"Invalid image data from {provider_name} for ISBN {isbn}: {e}")
+        return False
+    except MemoryError as e:
+        with suppress(AttributeError, RuntimeError):
+            current_app.logger.debug(f"Memory error processing image from {provider_name} for ISBN {isbn}: {e}")
+        return False
 
-    with suppress(Exception):
-        current_app.logger.debug(f"Invalid image data from {provider_name} for ISBN {isbn}")
-    return False
 
-
-def fetch_and_validate_thumbnail(
-    url: str, provider_name: str, isbn: str, timeout: int = 5, min_dimension: int = MIN_IMAGE_DIMENSION
-) -> bool:
+def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimension=None):
     """Fetch a thumbnail URL and validate it contains a real image.
 
     This helper function combines the common pattern of fetching a thumbnail URL,
@@ -227,7 +222,8 @@ def fetch_and_validate_thumbnail(
     :param provider_name: Name of the provider (for logging).
     :param isbn: ISBN being processed (for logging).
     :param timeout: Request timeout in seconds. Defaults to 5.
-    :param min_dimension: Minimum width/height in pixels for validation. Defaults to MIN_IMAGE_DIMENSION.
+    :param min_dimension: Minimum width/height in pixels for validation. Defaults to
+                          RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION from app config.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
     Example::
@@ -242,10 +238,12 @@ def fetch_and_validate_thumbnail(
         Uses fetch_with_retries() for HTTP requests, so retry logic is applied.
         Validates both HTTP status code and image content (dimensions, format).
     """
-    with suppress(Exception):
+    try:
         response = fetch_with_retries(url, timeout=timeout)
-        if response.status_code == requests.codes.ok and validate_image_content(
-            response.content, provider_name, isbn, min_dimension=min_dimension
-        ):
-            return True
-    return False
+    except requests.RequestException:
+        # Catch network-related errors only; let other exceptions propagate
+        return False
+
+    return response.status_code == requests.codes.ok and validate_image_content(
+        response.content, provider_name, isbn, min_dimension=min_dimension
+    )

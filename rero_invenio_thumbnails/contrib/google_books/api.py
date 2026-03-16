@@ -16,12 +16,10 @@
 """Thumbnails GoogleBooks."""
 
 import json
-from typing import Optional
 
 import requests
 from flask import current_app
 
-from rero_invenio_thumbnails.config import PROVIDER_GOOGLE_BOOKS
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
@@ -38,6 +36,8 @@ class GoogleBooksProvider(BaseProvider):
     public Books API with JSONP callback format.
     """
 
+    name = "google books"
+
     def __init__(self):
         """Initialize the Google Books provider.
 
@@ -48,7 +48,7 @@ class GoogleBooksProvider(BaseProvider):
         self.base_url = "https://books.google.com/books"
 
     @handle_provider_errors("Google Books")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         r"""Retrieve the preview URL for a book from Google Books.
 
         This method queries Google Books using the viewapi endpoint to get
@@ -85,10 +85,10 @@ class GoogleBooksProvider(BaseProvider):
                     if (
                         thumbnail_url := data.get(clean_isbn_value, {}).get("thumbnail_url")
                     ) and fetch_and_validate_thumbnail(thumbnail_url, "Google Books", clean_isbn_value):
-                        return thumbnail_url, PROVIDER_GOOGLE_BOOKS
-                    return None, PROVIDER_GOOGLE_BOOKS
+                        return thumbnail_url, self.name
+                    return None, self.name
                 except ValueError:
                     current_app.logger.error(f"Error parsing JSONP response for ISBN {clean_isbn_value}")
-                    return None, PROVIDER_GOOGLE_BOOKS
+                    return None, self.name
             current_app.logger.debug(f"Unexpected Google Books JSONP format for ISBN {clean_isbn_value}")
-        return None, PROVIDER_GOOGLE_BOOKS
+        return None, self.name
