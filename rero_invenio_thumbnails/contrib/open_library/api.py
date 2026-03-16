@@ -15,9 +15,6 @@
 
 """Thumbnails OpenLibrary."""
 
-from typing import Optional
-
-from rero_invenio_thumbnails.config import PROVIDER_OPEN_LIBRARY
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
@@ -32,6 +29,8 @@ class OpenLibraryProvider(BaseProvider):
     This provider fetches book cover images from Open Library, a free and
     open-source library catalog that aggregates book cover data.
     """
+
+    name = "open library"
 
     def __init__(self):
         """Initialize the Open Library provider.
@@ -49,7 +48,7 @@ class OpenLibraryProvider(BaseProvider):
         self.base_url = "https://covers.openlibrary.org"
 
     @handle_provider_errors("Open Library")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         r"""Retrieve the cover URL for a book from Open Library.
 
         This method uses the Open Library Covers API to retrieve book cover
@@ -76,6 +75,6 @@ class OpenLibraryProvider(BaseProvider):
 
         # Fetch and validate the thumbnail
         if fetch_and_validate_thumbnail(url, "Open Library", clean_isbn_value):
-            return url, PROVIDER_OPEN_LIBRARY
+            return url, self.name
 
-        return None, PROVIDER_OPEN_LIBRARY
+        return None, self.name

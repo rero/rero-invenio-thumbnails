@@ -49,7 +49,7 @@ Configuration:
         - Can be absolute or relative to application root
         - Default: './thumbnails'
 
-    RERO_ILS_URL: Base URL for constructing thumbnail endpoints
+    RERO_INVENIO_THUMBNAILS_URL: Base URL for constructing thumbnail endpoints
         - Used to generate full URLs for web serving
         - Default: 'http://localhost'
 

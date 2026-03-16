@@ -15,11 +15,8 @@
 
 """Thumbnails GoogleApi."""
 
-from typing import Optional
-
 import requests
 
-from rero_invenio_thumbnails.config import PROVIDER_GOOGLE_API
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
@@ -36,6 +33,8 @@ class GoogleApiProvider(BaseProvider):
     which provides access to a large database of book metadata and images.
     """
 
+    name = "google api"
+
     def __init__(self):
         """Initialize the Google API provider.
 
@@ -46,7 +45,7 @@ class GoogleApiProvider(BaseProvider):
         self.base_url = "https://www.googleapis.com/books/v1/volumes"
 
     @handle_provider_errors("Google API")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         r"""Retrieve the thumbnail URL for a book from Google Books API.
 
         This method queries the Google Books API by ISBN to retrieve book metadata
@@ -57,9 +56,9 @@ class GoogleApiProvider(BaseProvider):
             Google Books if found (None otherwise), and provider_name is \"google api\".
 
         Examples:
-            >>> provider = GoogleApiProvider()
-            >>> url, provider = provider.get_thumbnail_url("9780134685991")
-            >>> print(url, provider)
+            >>> provider = GoogleApiProvider()  # doctest: +SKIP
+            >>> url, provider = provider.get_thumbnail_url("9780134685991")  # doctest: +SKIP
+            >>> print(url, provider)  # doctest: +SKIP
             http://books.google.com/books/content?id=... google api
 
         Note:
@@ -79,5 +78,5 @@ class GoogleApiProvider(BaseProvider):
                 if (
                     thumbnail_url := item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail")
                 ) and fetch_and_validate_thumbnail(thumbnail_url, "Google API", clean_isbn_value):
-                    return thumbnail_url, PROVIDER_GOOGLE_API
-        return None, PROVIDER_GOOGLE_API
+                    return thumbnail_url, self.name
+        return None, self.name

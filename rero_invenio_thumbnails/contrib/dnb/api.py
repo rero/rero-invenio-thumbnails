@@ -16,12 +16,10 @@
 """Thumbnails DNB (Deutsche Nationalbibliothek)."""
 
 from contextlib import suppress
-from typing import Optional
 from xml.etree import ElementTree
 
 import requests
 
-from rero_invenio_thumbnails.config import PROVIDER_DNB
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
@@ -42,6 +40,8 @@ class DnbProvider(BaseProvider):
     legal deposit and other collections of the German National Library.
     """
 
+    name = "dnb"
+
     def __init__(self):
         """Initialize the DNB provider.
 
@@ -53,7 +53,7 @@ class DnbProvider(BaseProvider):
         self.sru_base_url = "https://services.dnb.de/sru/dnb"
 
     @handle_provider_errors("DNB")
-    def get_thumbnail_url(self, isbn: str) -> tuple[Optional[str], str]:
+    def get_thumbnail_url(self, isbn):
         """Retrieve thumbnail URL for an ISBN from DNB.
 
         This method queries the DNB SRU interface to find bibliographic records
@@ -77,7 +77,7 @@ class DnbProvider(BaseProvider):
         """
         isbn = clean_isbn(isbn)
         if not isbn:
-            return None, PROVIDER_DNB
+            return None, self.name
 
         # Build DNB SRU query URL
         # Format: https://services.dnb.de/sru/dnb?version=1.1&operation=searchRetrieve&query=isbn=<ISBN>&recordSchema=MARC21-xml&maximumRecords=1
@@ -85,7 +85,7 @@ class DnbProvider(BaseProvider):
 
         response = fetch_with_retries(url, timeout=10)  # DNB API is slower
         if not response or response.status_code != requests.codes.ok:
-            return None, PROVIDER_DNB
+            return None, self.name
 
         # Parse XML response
         with suppress(ElementTree.ParseError, Exception):
@@ -100,7 +100,7 @@ class DnbProvider(BaseProvider):
             # Find all records in the response
             records = root.findall(".//srw:record", namespaces)
             if not records:
-                return None, PROVIDER_DNB
+                return None, self.name
 
             # Search for cover URL in MARC field 856
             # Field 856 is "Electronic Location and Access"
@@ -119,7 +119,7 @@ class DnbProvider(BaseProvider):
                         if any(
                             keyword in url.lower() for keyword in ["cover", "thumbnail", "bild"]
                         ) and fetch_and_validate_thumbnail(url, "DNB", isbn, timeout=10):  # DNB API is slower
-                            return url, PROVIDER_DNB
+                            return url, self.name
 
                         # Also check subfield 'x' for notes/descriptions
                         note_subfield = datafield.find("marc:subfield[@code='x']", namespaces)
@@ -128,7 +128,7 @@ class DnbProvider(BaseProvider):
                             if any(
                                 keyword in note for keyword in ["cover", "umschlag", "thumbnail"]
                             ) and fetch_and_validate_thumbnail(url, "DNB", isbn, timeout=10):  # DNB API is slower
-                                return url, PROVIDER_DNB
+                                return url, self.name
 
                 # Alternative: Check MARC field 020 for ISBN with cover URL extensions
                 # Some DNB records include cover URLs constructed from ISBN
@@ -141,6 +141,6 @@ class DnbProvider(BaseProvider):
                         constructed_url = f"{self.base_url}?isbn={isbn}"
                         # Validate the constructed URL returns a real image
                         if fetch_and_validate_thumbnail(constructed_url, "DNB", isbn, timeout=10):  # DNB API is slower
-                            return constructed_url, PROVIDER_DNB
+                            return constructed_url, self.name
 
-        return None, PROVIDER_DNB
+        return None, self.name
