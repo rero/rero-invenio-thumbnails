@@ -18,13 +18,13 @@ package = true
 
 [project]
 name = "rero-invenio-thumbnails"
-version = "0.1.0"
+version = "1.0.0"
 description = "RERO Invenio Thumbnails."
 readme = "README.md"
 authors = [{name = "RERO+", email = "software@rero.ch"}]
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-requires-python = ">=3.9, <3.13"
+requires-python = ">=3.10, <3.13"
 
 dependencies = [
     "flask",
