@@ -19,7 +19,6 @@ import hashlib
 import os
 from contextlib import suppress
 from datetime import datetime, timezone
-from typing import Union
 
 from flask import Blueprint, Response, current_app, jsonify, make_response, request, send_file
 
@@ -106,7 +105,7 @@ def get_thumbnail_url_endpoint(isbn: str) -> tuple[Response, int]:
 
 
 @api_thumbnails.route("/thumbnails/<isbn>", methods=["GET"])
-def serve_thumbnail(isbn: str) -> Union[tuple[Response, int], Response]:
+def serve_thumbnail(isbn: str) -> tuple[Response, int] | Response:
     """Serve the actual thumbnail image file for a given ISBN.
 
     This endpoint retrieves and serves the thumbnail image directly from
