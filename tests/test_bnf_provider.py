@@ -23,152 +23,121 @@ from PIL import Image
 
 from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
 
+_ISBN = "9782070360284"
+_URL = f"https://openapi.bnf.fr/couverture/image/image/recupererImage?ISBN={_ISBN}&couverture=1"
 
-def test_bnf_init_default_values(app):
-    """Test BNF provider initialization with default values."""
+
+def _make_jpeg(width=100, height=150):
+    img = Image.new("RGB", (width, height), color="blue")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    return buf.getvalue()
+
+
+def test_bnf_init(app):
+    """Test BNF provider initialisation."""
     with app.app_context():
         provider = BnfProvider()
-        assert provider.app_name == "NE"
         assert provider.cover_page == 1
+        assert "openapi.bnf.fr" in provider.base_url
+        assert "rero-invenio-thumbnails" in provider.headers["User-Agent"]
 
 
 def test_bnf_get_thumbnail_url_success(app, requests_mock):
-    """Test successful thumbnail URL retrieval from BNF."""
+    """Test successful thumbnail URL retrieval."""
     with app.app_context():
-        img = Image.new("RGB", (100, 150), color="blue")
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="JPEG")
-        img_bytes.seek(0)
-
-        isbn = "9782070360284"
-        ark_id = "ark:/12148/cb450989938"
-
-        sru_url = (
-            f"https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve"
-            f"&query=bib.isbn%20all%20%22{isbn}%22&recordSchema=unimarcxchange&maximumRecords=1"
-        )
-        sru_response = f"""<?xml version="1.0" encoding="UTF-8"?>
-<srw:searchRetrieveResponse xmlns:srw="http://www.loc.gov/zing/srw/">
-    <srw:records>
-        <srw:record>
-            <srw:recordData>
-                <record xmlns="info:lc/xmlns/marcxchange-v2" id="{ark_id}">
-                    <controlfield tag="001">FRBNF450989938</controlfield>
-                </record>
-            </srw:recordData>
-        </srw:record>
-    </srw:records>
-</srw:searchRetrieveResponse>"""
-        requests_mock.get(sru_url, text=sru_response, status_code=200)
-
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(url, status_code=200, headers={"Content-Type": "image/jpeg"}, content=img_bytes.getvalue())
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
 
         provider = BnfProvider()
-        url_result, provider_name = provider.get_thumbnail_url(isbn)
+        url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url_result == url
-        assert provider_name == "bnf"
-        assert requests_mock.call_count == 2
+        assert url == _URL
+        assert name == "bnf"
+        assert requests_mock.call_count == 1
+
+
+def test_bnf_get_thumbnail_url_hyphenated_isbn(app, requests_mock):
+    """Test that hyphens are stripped from the ISBN before the request."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
+
+        provider = BnfProvider()
+        url, name = provider.get_thumbnail_url("978-2-07-036028-4")
+
+        assert url == _URL
+        assert name == "bnf"
 
 
 def test_bnf_get_thumbnail_url_not_found(app, requests_mock):
-    """Test thumbnail URL retrieval when BNF returns 404."""
+    """Test that None is returned when BNF returns 404."""
     with app.app_context():
-        ark_id = "ark:/12148/cb999999999"
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(url, status_code=404)
+        requests_mock.get(_URL, status_code=404)
 
         provider = BnfProvider()
-        url_result, provider_name = provider.get_thumbnail_url(ark_id)
+        url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url_result is None
-        assert provider_name == "bnf"
+        assert url is None
+        assert name == "bnf"
 
 
 def test_bnf_get_thumbnail_url_server_error(app, requests_mock):
-    """Test thumbnail URL retrieval when BNF returns 500."""
+    """Test that None is returned when BNF returns 500."""
     with app.app_context():
-        ark_id = "ark:/12148/cb450989938"
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(url, status_code=500)
+        requests_mock.get(_URL, status_code=500)
 
         provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url(ark_id)
+        url, name = provider.get_thumbnail_url(_ISBN)
 
         assert url is None
-        assert provider_name == "bnf"
+        assert name == "bnf"
 
 
-def test_bnf_get_thumbnail_url_invalid_content_type(app, requests_mock):
-    """Test thumbnail URL retrieval when response is not an image."""
+def test_bnf_get_thumbnail_url_invalid_content(app, requests_mock):
+    """Test that None is returned when the response is not an image."""
     with app.app_context():
-        ark_id = "ark:/12148/cb450989938"
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(
-            url, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html>Not an image</html>"
-        )
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html></html>")
 
         provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url(ark_id)
+        url, name = provider.get_thumbnail_url(_ISBN)
 
         assert url is None
-        assert provider_name == "bnf"
-
-
-def test_bnf_get_thumbnail_url_request_exception(app, requests_mock):
-    """Test thumbnail URL retrieval when request raises exception."""
-    with app.app_context():
-        ark_id = "ark:/12148/cb450989938"
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(url, exc=requests.exceptions.ConnectionError("Connection failed"))
-
-        provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url(ark_id)
-
-        assert url is None
-        assert provider_name == "bnf"
+        assert name == "bnf"
 
 
 def test_bnf_get_thumbnail_url_small_image(app, requests_mock):
-    """Test thumbnail URL retrieval with image too small (less than min dimension)."""
+    """Test that placeholder images below min dimension are rejected."""
     with app.app_context():
-        img = Image.new("RGB", (5, 5), color="red")
-        img_bytes = io.BytesIO()
-        img.save(img_bytes, format="JPEG")
-        img_bytes.seek(0)
-
-        ark_id = "ark:/12148/cb450989938"
-        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
-        requests_mock.get(url, status_code=200, headers={"Content-Type": "image/jpeg"}, content=img_bytes.getvalue())
+        requests_mock.get(
+            _URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg(width=5, height=5)
+        )
 
         provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url(ark_id)
+        url, name = provider.get_thumbnail_url(_ISBN)
 
         assert url is None
-        assert provider_name == "bnf"
+        assert name == "bnf"
 
 
-def test_bnf_thumbnail_url_format(app):
-    """Test that the BNF URL format is correct."""
+def test_bnf_get_thumbnail_url_request_exception(app, requests_mock):
+    """Test that a connection error is handled gracefully."""
     with app.app_context():
-        ark_id = "ark:/12148/cb450989938"
-        expected_url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        requests_mock.get(_URL, exc=requests.exceptions.ConnectionError("timeout"))
 
-        assert "catalogue.bnf.fr" in expected_url
-        assert ark_id in expected_url
-        assert "appName=NE" in expected_url
-        assert "couverture=1" in expected_url
-        assert "idArk=" in expected_url
+        provider = BnfProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url is None
+        assert name == "bnf"
 
 
-@pytest.mark.network
+@pytest.mark.external
 def test_bnf_real_thumbnail_is_valid_image(app):
     """Test that BNF returns a real valid image for a known ISBN."""
     with app.app_context():
         provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url("9782070612758")
+        url, name = provider.get_thumbnail_url("9782070612758")
 
-        assert provider_name == "bnf"
+        assert name == "bnf"
         assert url is not None, "BNF returned no cover URL for ISBN 9782070612758"
-        assert "catalogue.bnf.fr" in url
+        assert "openapi.bnf.fr" in url

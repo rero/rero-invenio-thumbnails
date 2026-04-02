@@ -82,7 +82,7 @@ testpaths = "tests rero_invenio_thumbnails"
 # not displaying all the PendingDeprecationWarnings from invenio
 filterwarnings = "ignore::PendingDeprecationWarning"
 markers = [
-    "network: mark test as requiring real external network access (run with --network)",
+    "external: mark test as requiring real external network access (run with --external)",
 ]
 
 [tool.coverage.run]

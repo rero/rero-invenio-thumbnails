@@ -194,7 +194,7 @@ def test_open_library_get_thumbnail_url_different_status_codes(app, requests_moc
         assert provider_name == "open library"
 
 
-@pytest.mark.network
+@pytest.mark.external
 def test_open_library_real_thumbnail_is_valid_image(app):
     """Test that Open Library returns a real valid image for a known ISBN."""
     with app.app_context():

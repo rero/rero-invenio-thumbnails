@@ -16,16 +16,11 @@
 """Thumbnails BNF (Bibliothèque nationale de France)."""
 
 from importlib.metadata import version as _pkg_version
-from xml.etree import ElementTree
-
-import requests
-from flask import current_app
 
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
     fetch_and_validate_thumbnail,
-    fetch_with_retries,
     handle_provider_errors,
 )
 
@@ -33,9 +28,9 @@ from rero_invenio_thumbnails.contrib.utils import (
 class BnfProvider(BaseProvider):
     """Thumbnail provider for BNF (Bibliothèque nationale de France).
 
-    This provider fetches book cover images from the French National Library's
-    catalogue service using ARK identifiers. The service provides access to
-    covers of documents published or distributed in France and received by
+    Uses the openapi.bnf.fr cover service.
+
+    Covers documents published or distributed in France and received by
     the BnF under legal deposit (since 2010).
     """
 
@@ -45,119 +40,36 @@ class BnfProvider(BaseProvider):
         """Initialize the BNF provider.
 
         Examples:
-            >>> # Default provider (front cover)
             >>> provider = BnfProvider()
         """
-        self.app_name = "NE"  # Required by BNF API
-        self.cover_page = 1  # Cover page to retrieve (1=front cover, 4=back cover).
-        self.base_url = "https://catalogue.bnf.fr/couverture"
-        # BNF SRU blocks the default python-requests User-Agent with a TCP reset.
+        self.base_url = "https://openapi.bnf.fr/couverture/image/image/recupererImage"
+        self.cover_page = 1  # 1 = front cover, 4 = back cover
+        # BNF API blocks the default python-requests User-Agent.
         self.headers = {
-            "User-Agent": f"rero-invenio-thumbnails/{_pkg_version('rero-invenio-thumbnails')} (+https://github.com/rero/rero-invenio-thumbnails)"
+            "User-Agent": (
+                f"rero-invenio-thumbnails/{_pkg_version('rero-invenio-thumbnails')}"
+                " (+https://github.com/rero/rero-invenio-thumbnails)"
+            )
         }
-
-    def isbn_to_ark(self, isbn):
-        """Convert ISBN to ARK identifier using BNF SRU API.
-
-        This method queries the BNF catalog via the SRU API to retrieve the ARK
-        identifier associated with an ISBN. The ARK is extracted directly from
-        the MARC record's id attribute in the XML response.
-
-        :param isbn: The ISBN to convert (ISBN-10 or ISBN-13, with or without hyphens/spaces).
-        :returns: str or None - The ARK identifier if found, None otherwise.
-
-        Example::
-
-            provider = BnfProvider()
-            ark_id = provider.isbn_to_ark("978-2-07-036028-4")
-            # ark_id == "ark:/12148/cb450989938"
-            # Works with clean ISBN too
-            ark_id = provider.isbn_to_ark("9782070360284")
-
-        Note:
-            - Uses BNF's SRU (Search/Retrieve via URL) API with UNIMARC XML format.
-            - ISBN is automatically cleaned (hyphens and spaces removed) before query.
-            - Extracts ARK identifier from the <mxc:record id> attribute.
-            - Returns None if no matching record is found or on API errors.
-        """
-        try:
-            # Clean ISBN (remove hyphens and spaces)
-            clean_isbn_value = clean_isbn(isbn)
-
-            # Query BNF SRU API for ISBN
-            sru_url = f"https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&query=bib.isbn%20all%20%22{clean_isbn_value}%22&recordSchema=unimarcxchange&maximumRecords=1"
-            response = fetch_with_retries(sru_url, headers=self.headers, timeout=10)  # BNF API is slower
-
-            if response.status_code != requests.codes.ok:
-                return None
-
-            # Parse XML response to extract ARK identifier
-            root = ElementTree.fromstring(response.content)
-
-            # Define namespace for SRU and MARC XML
-            namespaces = {"srw": "http://www.loc.gov/zing/srw/", "mxc": "info:lc/xmlns/marcxchange-v2"}
-
-            # Find the MARC record with id attribute containing ARK
-            if (marc_record := root.find(".//mxc:record[@id]", namespaces)) is not None and (
-                ark_id := marc_record.get("id")
-            ):
-                return ark_id
-        except ElementTree.ParseError as exc:
-            # Handle XML parsing errors
-            current_app.logger.warning(f"BNF XML parse error for ISBN {isbn}: {exc}")
-        except requests.RequestException as exc:
-            # Handle HTTP request errors
-            current_app.logger.warning(f"BNF SRU request failed for ISBN {isbn}: {exc}")
-        except Exception as exc:
-            # Catch any other unexpected errors
-            current_app.logger.error(f"Unexpected error in BNF isbn_to_ark for ISBN {isbn}: {exc}", exc_info=True)
-
-        return None
 
     @handle_provider_errors("BNF")
     def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from BNF.
 
-        This method uses the BNF catalogue API to retrieve book cover images
-        by first converting the ISBN to an ARK identifier via the SRU API,
-        then constructing the cover image URL with the required parameters.
+        Queries the BNF openapi cover service.
 
-        :param isbn: The ISBN of the document (ISBN-10 or ISBN-13, with or without hyphens/spaces).
-        :returns: tuple - (url, provider_name) where url is the direct URL to the book
-            cover image if found (None otherwise), and provider_name is "bnf".
+        :param isbn: ISBN-10 or ISBN-13, with or without hyphens/spaces.
+        :returns: tuple — ``(url, "bnf")`` where *url* is the image URL or None.
 
         Example::
 
             provider = BnfProvider()
-            # Using ISBN with hyphens
             url, name = provider.get_thumbnail_url("978-2-07-036028-4")
-            # url == "https://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
-            # Using clean ISBN
-            url, name = provider.get_thumbnail_url("9782070360284")
-
-        Note:
-            - Uses the official BNF catalogue API (no authentication required).
-            - ISBN is automatically cleaned and converted to ARK identifier via SRU API.
-            - Returns (None, "bnf") if ISBN cannot be converted to ARK or cover doesn't exist.
-            - The service returns JPEG or PNG images.
-            - Validates image content (size and dimensions) before returning URL.
+            # url == "https://openapi.bnf.fr/couverture/image/image/recupererImage?ISBN=9782070360284&couverture=1"
         """
-        # Clean ISBN (remove hyphens and spaces)
-        clean_isbn_value = clean_isbn(isbn)
+        clean = clean_isbn(isbn)
+        url = f"{self.base_url}?ISBN={clean}&couverture={self.cover_page}"
 
-        # Try to convert ISBN to ARK
-        ark_id = self.isbn_to_ark(clean_isbn_value)
-        if not ark_id:
-            # If conversion fails, return None
-            return None, self.name
-
-        # Construct URL with required BNF API parameters
-        url = f"{self.base_url}?appName={self.app_name}&idArk={ark_id}&couverture={self.cover_page}"
-
-        # Validate the thumbnail URL
-        if fetch_and_validate_thumbnail(
-            url, "BNF", clean_isbn_value, timeout=10, headers=self.headers
-        ):  # BNF API is slower
+        if fetch_and_validate_thumbnail(url, "BNF", clean, timeout=10, headers=self.headers):
             return url, self.name
-
         return None, self.name

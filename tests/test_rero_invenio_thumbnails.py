@@ -584,7 +584,8 @@ def test_serve_thumbnail_etag_different_after_modification(app, client):
         assert response.status_code == 200
         etag1 = response.headers["ETag"]
 
-        time.sleep(0.01)
+        # Use 1.1s sleep to account for filesystems with 1-second timestamp granularity
+        time.sleep(1.1)
         with open(test_image_path, "wb") as f:
             f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00")
 
