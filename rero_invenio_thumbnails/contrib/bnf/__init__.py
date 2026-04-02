@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """BNF (Bibliothèque nationale de France) thumbnail provider module.
 
@@ -35,11 +35,11 @@ Example::
     from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
     provider = BnfProvider()
     url, name = provider.get_thumbnail_url("978-2-07-036028-4")
-    # url == "http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
+    # url == "https://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
 
 API Documentation:
     - SRU API: https://catalogue.bnf.fr/api/SRU
-    - Cover API: http://catalogue.bnf.fr/couverture
+    - Cover API: https://catalogue.bnf.fr/couverture
     - BNF Hackathon Documentation: https://github.com/hackathonBnF/hackathon2016/wiki/API-Couverture-Service
 
 Note:

@@ -81,6 +81,9 @@ addopts = "--color=yes --exclude-warning-annotations --doctest-modules --cov=rer
 testpaths = "tests rero_invenio_thumbnails"
 # not displaying all the PendingDeprecationWarnings from invenio
 filterwarnings = "ignore::PendingDeprecationWarning"
+markers = [
+    "network: mark test as requiring real external network access (run with --network)",
+]
 
 [tool.coverage.run]
 source = ["rero_invenio_thumbnails"]

@@ -11,10 +11,11 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Thumbnails BNF (Bibliothèque nationale de France)."""
 
+from importlib.metadata import version as _pkg_version
 from xml.etree import ElementTree
 
 import requests
@@ -49,7 +50,11 @@ class BnfProvider(BaseProvider):
         """
         self.app_name = "NE"  # Required by BNF API
         self.cover_page = 1  # Cover page to retrieve (1=front cover, 4=back cover).
-        self.base_url = "http://catalogue.bnf.fr/couverture"
+        self.base_url = "https://catalogue.bnf.fr/couverture"
+        # BNF SRU blocks the default python-requests User-Agent with a TCP reset.
+        self.headers = {
+            "User-Agent": f"rero-invenio-thumbnails/{_pkg_version('rero-invenio-thumbnails')} (+https://github.com/rero/rero-invenio-thumbnails)"
+        }
 
     def isbn_to_ark(self, isbn):
         """Convert ISBN to ARK identifier using BNF SRU API.
@@ -81,7 +86,7 @@ class BnfProvider(BaseProvider):
 
             # Query BNF SRU API for ISBN
             sru_url = f"https://catalogue.bnf.fr/api/SRU?version=1.2&operation=searchRetrieve&query=bib.isbn%20all%20%22{clean_isbn_value}%22&recordSchema=unimarcxchange&maximumRecords=1"
-            response = fetch_with_retries(sru_url, timeout=10)  # BNF API is slower
+            response = fetch_with_retries(sru_url, headers=self.headers, timeout=10)  # BNF API is slower
 
             if response.status_code != requests.codes.ok:
                 return None
@@ -126,7 +131,7 @@ class BnfProvider(BaseProvider):
             provider = BnfProvider()
             # Using ISBN with hyphens
             url, name = provider.get_thumbnail_url("978-2-07-036028-4")
-            # url == "http://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
+            # url == "https://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
             # Using clean ISBN
             url, name = provider.get_thumbnail_url("9782070360284")
 
@@ -150,7 +155,9 @@ class BnfProvider(BaseProvider):
         url = f"{self.base_url}?appName={self.app_name}&idArk={ark_id}&couverture={self.cover_page}"
 
         # Validate the thumbnail URL
-        if fetch_and_validate_thumbnail(url, "BNF", clean_isbn_value, timeout=10):  # BNF API is slower
+        if fetch_and_validate_thumbnail(
+            url, "BNF", clean_isbn_value, timeout=10, headers=self.headers
+        ):  # BNF API is slower
             return url, self.name
 
         return None, self.name

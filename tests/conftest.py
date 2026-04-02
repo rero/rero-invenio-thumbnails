@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Pytest configuration.
 
@@ -50,6 +50,20 @@ def create_test_image(width=100, height=150, color="blue"):
 pytest_plugins = []
 
 
+def pytest_addoption(parser):
+    """Add --network flag to enable real network tests."""
+    parser.addoption("--network", action="store_true", default=False, help="Run tests that require real network access")
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip network-marked tests unless --network is passed."""
+    if not config.getoption("--network"):
+        skip = pytest.mark.skip(reason="pass --network to run")
+        for item in items:
+            if item.get_closest_marker("network"):
+                item.add_marker(skip)
+
+
 def pytest_configure(config):
     """Configure pytest and inject create_test_image into test namespace."""
     import builtins
@@ -67,7 +81,12 @@ def no_external_requests(monkeypatch, request):
 
     This fixture is automatically used for all tests to ensure network isolation.
     Tests using requests_mock will automatically mock all requests.
+    Network-marked tests (run with --network) bypass this restriction.
     """
+    # Allow real requests for network integration tests
+    if request.node.get_closest_marker("network"):
+        return
+
     # Skip monkeypatching if requests_mock fixture is used in the test
     if "requests_mock" in request.fixturenames:
         return  # Let requests_mock handle mocking

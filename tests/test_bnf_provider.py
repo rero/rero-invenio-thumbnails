@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Tests for BNF provider."""
 
@@ -61,7 +61,7 @@ def test_bnf_get_thumbnail_url_success(app, requests_mock):
 </srw:searchRetrieveResponse>"""
         requests_mock.get(sru_url, text=sru_response, status_code=200)
 
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(url, status_code=200, headers={"Content-Type": "image/jpeg"}, content=img_bytes.getvalue())
 
         provider = BnfProvider()
@@ -76,7 +76,7 @@ def test_bnf_get_thumbnail_url_not_found(app, requests_mock):
     """Test thumbnail URL retrieval when BNF returns 404."""
     with app.app_context():
         ark_id = "ark:/12148/cb999999999"
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(url, status_code=404)
 
         provider = BnfProvider()
@@ -90,7 +90,7 @@ def test_bnf_get_thumbnail_url_server_error(app, requests_mock):
     """Test thumbnail URL retrieval when BNF returns 500."""
     with app.app_context():
         ark_id = "ark:/12148/cb450989938"
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(url, status_code=500)
 
         provider = BnfProvider()
@@ -104,7 +104,7 @@ def test_bnf_get_thumbnail_url_invalid_content_type(app, requests_mock):
     """Test thumbnail URL retrieval when response is not an image."""
     with app.app_context():
         ark_id = "ark:/12148/cb450989938"
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(
             url, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html>Not an image</html>"
         )
@@ -120,7 +120,7 @@ def test_bnf_get_thumbnail_url_request_exception(app, requests_mock):
     """Test thumbnail URL retrieval when request raises exception."""
     with app.app_context():
         ark_id = "ark:/12148/cb450989938"
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(url, exc=requests.exceptions.ConnectionError("Connection failed"))
 
         provider = BnfProvider()
@@ -139,7 +139,7 @@ def test_bnf_get_thumbnail_url_small_image(app, requests_mock):
         img_bytes.seek(0)
 
         ark_id = "ark:/12148/cb450989938"
-        url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
         requests_mock.get(url, status_code=200, headers={"Content-Type": "image/jpeg"}, content=img_bytes.getvalue())
 
         provider = BnfProvider()
@@ -153,7 +153,7 @@ def test_bnf_thumbnail_url_format(app):
     """Test that the BNF URL format is correct."""
     with app.app_context():
         ark_id = "ark:/12148/cb450989938"
-        expected_url = f"http://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
+        expected_url = f"https://catalogue.bnf.fr/couverture?appName=NE&idArk={ark_id}&couverture=1"
 
         assert "catalogue.bnf.fr" in expected_url
         assert ark_id in expected_url
@@ -166,21 +166,9 @@ def test_bnf_thumbnail_url_format(app):
 def test_bnf_real_thumbnail_is_valid_image(app):
     """Test that BNF returns a real valid image for a known ISBN."""
     with app.app_context():
-        isbn = "9782070612758"
-
         provider = BnfProvider()
-        url, provider_name = provider.get_thumbnail_url(isbn)
+        url, provider_name = provider.get_thumbnail_url("9782070612758")
 
-        if url:
-            assert provider_name == "bnf"
-            response = requests.get(url, timeout=10)
-            assert response.status_code == 200
-            assert response.headers.get("Content-Type", "").startswith("image/")
-
-            try:
-                img = Image.open(io.BytesIO(response.content))
-                assert img.size[0] >= 10
-                assert img.size[1] >= 10
-                assert img.format in ["JPEG", "PNG", "GIF"]
-            except Exception as e:
-                raise AssertionError(f"Failed to open image from BNF URL: {e}") from e
+        assert provider_name == "bnf"
+        assert url is not None, "BNF returned no cover URL for ISBN 9782070612758"
+        assert "catalogue.bnf.fr" in url

@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Tests for GoogleBooksProvider."""
 
@@ -19,6 +19,7 @@ import builtins
 import json
 import re
 
+import pytest
 import requests
 
 from rero_invenio_thumbnails.contrib.google_books.api import GoogleBooksProvider
@@ -184,3 +185,15 @@ def test_google_books_get_thumbnail_url_generic_exception(app, requests_mock):
 
         assert url is None
         assert provider_name == "google books"
+
+
+@pytest.mark.network
+def test_google_books_real_thumbnail_is_valid_image(app):
+    """Test that Google Books returns a real valid image for a known ISBN."""
+    with app.app_context():
+        provider = GoogleBooksProvider()
+        url, provider_name = provider.get_thumbnail_url("9780134685991")
+
+        assert provider_name == "google books"
+        assert url is not None, "Google Books returned no cover URL for ISBN 9780134685991"
+        assert "books.google.com" in url
