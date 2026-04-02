@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Thumbnails GoogleApi."""
 
@@ -59,7 +59,7 @@ class GoogleApiProvider(BaseProvider):
             >>> provider = GoogleApiProvider()  # doctest: +SKIP
             >>> url, provider = provider.get_thumbnail_url("9780134685991")  # doctest: +SKIP
             >>> print(url, provider)  # doctest: +SKIP
-            http://books.google.com/books/content?id=... google api
+            https://books.google.com/books/content?id=... google api
 
         Note:
             - Requires internet connectivity to access Google Books API.

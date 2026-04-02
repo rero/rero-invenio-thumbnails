@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Utility functions for thumbnail fetching and validation.
 
@@ -211,7 +211,7 @@ def validate_image_content(content, provider_name="", isbn="", min_dimension=Non
         return False
 
 
-def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimension=None):
+def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimension=None, headers=None):
     """Fetch a thumbnail URL and validate it contains a real image.
 
     This helper function combines the common pattern of fetching a thumbnail URL,
@@ -224,6 +224,7 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimens
     :param timeout: Request timeout in seconds. Defaults to 5.
     :param min_dimension: Minimum width/height in pixels for validation. Defaults to
                           RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION from app config.
+    :param headers: Optional HTTP headers to include in the request. Defaults to None.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
     Example::
@@ -239,7 +240,7 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimens
         Validates both HTTP status code and image content (dimensions, format).
     """
     try:
-        response = fetch_with_retries(url, timeout=timeout)
+        response = fetch_with_retries(url, headers=headers, timeout=timeout)
     except requests.RequestException:
         # Catch network-related errors only; let other exceptions propagate
         return False

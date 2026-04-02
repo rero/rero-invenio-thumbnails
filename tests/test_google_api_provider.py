@@ -11,13 +11,14 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Tests for GoogleApiProvider."""
 
 import builtins
 import re
 
+import pytest
 import requests
 
 from rero_invenio_thumbnails.contrib.google_api.api import GoogleApiProvider
@@ -151,3 +152,15 @@ def test_google_api_get_thumbnail_url_json_parsing(app, requests_mock):
 
         assert url == "http://example.com/thumb"
         assert provider_name == "google api"
+
+
+@pytest.mark.network
+def test_google_api_real_thumbnail_is_valid_image(app):
+    """Test that Google API returns a real valid image for a known ISBN."""
+    with app.app_context():
+        provider = GoogleApiProvider()
+        url, provider_name = provider.get_thumbnail_url("9780134685991")
+
+        assert provider_name == "google api"
+        assert url is not None, "Google API returned no cover URL for ISBN 9780134685991"
+        assert "googleapis.com" in url or "books.google.com" in url

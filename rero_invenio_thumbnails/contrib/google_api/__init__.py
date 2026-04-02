@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Google Books API thumbnail provider module.
 
@@ -37,7 +37,7 @@ Example::
     from rero_invenio_thumbnails.contrib.google_api.api import GoogleApiProvider
     provider = GoogleApiProvider()
     url, name = provider.get_thumbnail_url('978-0-13-468599-1')
-    # url == "http://books.google.com/books/content?id=abc123&printsec=frontcover&img=1"
+    # url == "https://books.google.com/books/content?id=abc123&printsec=frontcover&img=1"
 
 API Documentation:
     - Google Books API: https://developers.google.com/books/docs/v1/using

@@ -11,7 +11,7 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Tests for OpenLibraryProvider."""
 
@@ -192,3 +192,15 @@ def test_open_library_get_thumbnail_url_different_status_codes(app, requests_moc
         else:
             assert url is None
         assert provider_name == "open library"
+
+
+@pytest.mark.network
+def test_open_library_real_thumbnail_is_valid_image(app):
+    """Test that Open Library returns a real valid image for a known ISBN."""
+    with app.app_context():
+        provider = OpenLibraryProvider()
+        url, provider_name = provider.get_thumbnail_url("9780451524935")
+
+        assert provider_name == "open library"
+        assert url is not None, "Open Library returned no cover URL for ISBN 9780451524935"
+        assert "covers.openlibrary.org" in url

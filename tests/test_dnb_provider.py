@@ -11,13 +11,14 @@
 # GNU Affero General Public License for more details.
 #
 # You should have received a copy of the GNU Affero General Public License
-# along with this program. If not, see <http://www.gnu.org/licenses/>.
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 """Tests for DNB provider."""
 
 import io
 import re
 
+import pytest
 from PIL import Image
 
 from rero_invenio_thumbnails.contrib.dnb.api import DnbProvider
@@ -231,3 +232,15 @@ def test_dnb_provider_note_matching(app, requests_mock):
 
         assert url == "https://example.com/image/book.jpg"
         assert provider_name == "dnb"
+
+
+@pytest.mark.network
+def test_dnb_real_thumbnail_is_valid_image(app):
+    """Test that DNB returns a real valid image for a known ISBN."""
+    with app.app_context():
+        provider = DnbProvider()
+        url, provider_name = provider.get_thumbnail_url("9783730615522")
+
+        assert provider_name == "dnb"
+        assert url is not None, "DNB returned no cover URL for ISBN 9783730615522"
+        assert "portal.dnb.de" in url
