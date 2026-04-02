@@ -20,7 +20,7 @@ import os
 from contextlib import suppress
 from datetime import datetime, timezone
 
-from flask import Blueprint, Response, current_app, jsonify, make_response, request, send_file
+from flask import Blueprint, current_app, jsonify, make_response, request, send_file
 
 from rero_invenio_thumbnails.api import get_thumbnail_url
 from rero_invenio_thumbnails.contrib.files.api import FilesProvider
@@ -28,7 +28,7 @@ from rero_invenio_thumbnails.contrib.files.api import FilesProvider
 api_thumbnails = Blueprint("api_thumbnails", __name__, url_prefix="/")
 
 
-def add_cache_headers(response: Response) -> Response:
+def add_cache_headers(response):
     """Add HTTP cache control headers to response.
 
     :param response: Flask response object
@@ -46,7 +46,7 @@ def add_cache_headers(response: Response) -> Response:
 
 
 @api_thumbnails.route("/thumbnails-url/<isbn>", methods=["GET"])
-def get_thumbnail_url_endpoint(isbn: str) -> tuple[Response, int]:
+def get_thumbnail_url_endpoint(isbn):
     """Retrieve thumbnail URL for a given ISBN as JSON.
 
     Returns JSON containing the external URL where the thumbnail can be found,
@@ -105,7 +105,7 @@ def get_thumbnail_url_endpoint(isbn: str) -> tuple[Response, int]:
 
 
 @api_thumbnails.route("/thumbnails/<isbn>", methods=["GET"])
-def serve_thumbnail(isbn: str) -> tuple[Response, int] | Response:
+def serve_thumbnail(isbn):
     """Serve the actual thumbnail image file for a given ISBN.
 
     This endpoint retrieves and serves the thumbnail image directly from

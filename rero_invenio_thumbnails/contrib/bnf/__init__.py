@@ -15,34 +15,19 @@
 
 """BNF (Bibliothèque nationale de France) thumbnail provider module.
 
-This module provides thumbnail retrieval functionality for the French National Library.
-It interfaces with the BNF catalogue API to fetch book cover images using ARK identifiers.
-
-The provider implements a two-step process:
-1. Convert ISBN to ARK identifier via the BNF SRU (Search/Retrieve via URL) API
-2. Retrieve the cover image using the ARK identifier
-
-Key Features:
-    - Automatic ISBN to ARK conversion
-    - Support for ISBN-10 and ISBN-13 formats
-    - Configurable cover page (front/back)
-    - Custom application name support
-    - ISBN cleaning (removes hyphens and spaces)
-    - Image validation (dimensions and content type)
+Fetches cover images via the BNF openapi cover service.
 
 Example::
 
     from rero_invenio_thumbnails.contrib.bnf.api import BnfProvider
     provider = BnfProvider()
     url, name = provider.get_thumbnail_url("978-2-07-036028-4")
-    # url == "https://catalogue.bnf.fr/couverture?appName=NE&idArk=ark:/12148/cb450989938&couverture=1"
+    # url == "https://openapi.bnf.fr/couverture/image/image/recupererImage?ISBN=9782070360284&couverture=1"
 
 API Documentation:
-    - SRU API: https://catalogue.bnf.fr/api/SRU
-    - Cover API: https://catalogue.bnf.fr/couverture
-    - BNF Hackathon Documentation: https://github.com/hackathonBnF/hackathon2016/wiki/API-Couverture-Service
+    https://api.bnf.fr/fr/api-service-couvertures-du-catalogue-general
 
 Note:
-    This provider is specifically designed for documents published or distributed in France
-    and received by the BnF under legal deposit (since 2010).
+    Covers documents published or distributed in France and received by
+    the BnF under legal deposit since 2010.
 """

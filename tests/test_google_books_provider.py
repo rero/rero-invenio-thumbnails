@@ -187,9 +187,9 @@ def test_google_books_get_thumbnail_url_generic_exception(app, requests_mock):
         assert provider_name == "google books"
 
 
-@pytest.mark.network
-def test_google_books_real_thumbnail_is_valid_image(app):
-    """Test that Google Books returns a real valid image for a known ISBN."""
+@pytest.mark.external
+def test_google_books_real_thumbnail_url_returned(app):
+    """Test that Google Books returns a thumbnail URL for a known ISBN."""
     with app.app_context():
         provider = GoogleBooksProvider()
         url, provider_name = provider.get_thumbnail_url("9780134685991")

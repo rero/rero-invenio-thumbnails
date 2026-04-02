@@ -258,7 +258,7 @@ def test_serve_thumbnail_etag_changes_after_file_update(app, client):
             f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01")
         etag1 = client.get(f"/thumbnails/{isbn}").headers["ETag"]
 
-        time.sleep(0.01)
+        time.sleep(1.1)  # Ensure mtime changes on filesystems with 1-second resolution
         with open(path, "wb") as f:
             f.write(b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x00")
         etag2 = client.get(f"/thumbnails/{isbn}").headers["ETag"]

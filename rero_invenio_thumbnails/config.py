@@ -44,7 +44,7 @@ RERO_INVENIO_THUMBNAILS_PROVIDERS = [
     "dnb",
     "google books",
     "google api",
-    "open library"  # Open Library is last because it has frequently timeouts
+    "open library"  # Open Library is last because it has frequent timeouts
 ]
 
 # Local directory for storing thumbnail files (used by FilesProvider)

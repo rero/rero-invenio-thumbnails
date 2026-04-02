@@ -154,9 +154,9 @@ def test_google_api_get_thumbnail_url_json_parsing(app, requests_mock):
         assert provider_name == "google api"
 
 
-@pytest.mark.network
-def test_google_api_real_thumbnail_is_valid_image(app):
-    """Test that Google API returns a real valid image for a known ISBN."""
+@pytest.mark.external
+def test_google_api_returns_thumbnail_url_for_known_isbn(app):
+    """Test that Google API returns a thumbnail URL for a known ISBN."""
     with app.app_context():
         provider = GoogleApiProvider()
         url, provider_name = provider.get_thumbnail_url("9780134685991")

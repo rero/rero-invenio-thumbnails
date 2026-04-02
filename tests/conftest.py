@@ -51,16 +51,18 @@ pytest_plugins = []
 
 
 def pytest_addoption(parser):
-    """Add --network flag to enable real network tests."""
-    parser.addoption("--network", action="store_true", default=False, help="Run tests that require real network access")
+    """Add --external flag to enable real network tests."""
+    parser.addoption(
+        "--external", action="store_true", default=False, help="Run tests that require real external network access"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    """Skip network-marked tests unless --network is passed."""
-    if not config.getoption("--network"):
-        skip = pytest.mark.skip(reason="pass --network to run")
+    """Skip external-marked tests unless --external is passed."""
+    if not config.getoption("--external"):
+        skip = pytest.mark.skip(reason="pass --external to run")
         for item in items:
-            if item.get_closest_marker("network"):
+            if item.get_closest_marker("external"):
                 item.add_marker(skip)
 
 
@@ -81,10 +83,10 @@ def no_external_requests(monkeypatch, request):
 
     This fixture is automatically used for all tests to ensure network isolation.
     Tests using requests_mock will automatically mock all requests.
-    Network-marked tests (run with --network) bypass this restriction.
+    Tests marked with @pytest.mark.external (run with --external) bypass this restriction.
     """
-    # Allow real requests for network integration tests
-    if request.node.get_closest_marker("network"):
+    # Allow real requests for external integration tests
+    if request.node.get_closest_marker("external"):
         return
 
     # Skip monkeypatching if requests_mock fixture is used in the test

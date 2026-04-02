@@ -234,7 +234,7 @@ def test_dnb_provider_note_matching(app, requests_mock):
         assert provider_name == "dnb"
 
 
-@pytest.mark.network
+@pytest.mark.external
 def test_dnb_real_thumbnail_is_valid_image(app):
     """Test that DNB returns a real valid image for a known ISBN."""
     with app.app_context():

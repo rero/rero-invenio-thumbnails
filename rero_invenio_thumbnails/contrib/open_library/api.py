@@ -47,7 +47,7 @@ class OpenLibraryProvider(BaseProvider):
 
         self.base_url = "https://covers.openlibrary.org"
 
-    @handle_provider_errors("Open Library")
+    @handle_provider_errors("open library")
     def get_thumbnail_url(self, isbn):
         r"""Retrieve the cover URL for a book from Open Library.
 
@@ -74,7 +74,7 @@ class OpenLibraryProvider(BaseProvider):
         url = f"{self.base_url}/b/isbn/{clean_isbn_value}-{self.size}.jpg?default=false"
 
         # Fetch and validate the thumbnail
-        if fetch_and_validate_thumbnail(url, "Open Library", clean_isbn_value):
+        if fetch_and_validate_thumbnail(url, self.name, clean_isbn_value):
             return url, self.name
 
         return None, self.name

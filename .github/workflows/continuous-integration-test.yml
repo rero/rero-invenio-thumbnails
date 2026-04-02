@@ -33,7 +33,7 @@ jobs:
       run: uv run poe run_tests
 
     - name: Coveralls
-      if: ${{ matrix.dependencies == 'dev' }}
+      if: ${{ matrix.dependencies == 'dev' && matrix.python-version == '3.12' }}
       uses: coverallsapp/github-action@v2
       continue-on-error: true
       with:
