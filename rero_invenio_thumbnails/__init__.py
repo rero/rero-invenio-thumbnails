@@ -39,7 +39,7 @@ Configuration:
     RERO_INVENIO_THUMBNAILS_CACHE_EXPIRE: Cache expiration time in seconds
 """
 
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import version
 
 from .api import get_thumbnail_url
 from .contrib.bnf.api import BnfProvider
@@ -50,10 +50,7 @@ from .contrib.google_books.api import GoogleBooksProvider
 from .contrib.open_library.api import OpenLibraryProvider
 from .ext import REROInvenioThumbnails
 
-try:
-    __version__ = version("rero-invenio-thumbnails")
-except PackageNotFoundError:
-    __version__ = "1.0.0"
+__version__ = version("rero-invenio-thumbnails")
 
 __all__ = (
     "BnfProvider",
