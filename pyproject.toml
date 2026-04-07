@@ -60,13 +60,14 @@ rero_invenio_thumbnails = "rero_invenio_thumbnails.config"
 rero_invenio_thumbnails = "rero_invenio_thumbnails.ext:REROInvenioThumbnails"
 
 [project.entry-points."rero_invenio_thumbnails.providers"]
-files = "rero_invenio_thumbnails.contrib.files.api:FilesProvider"
+"files" = "rero_invenio_thumbnails.contrib.files.api:FilesProvider"
 "open library" = "rero_invenio_thumbnails.contrib.open_library.api:OpenLibraryProvider"
-bnf = "rero_invenio_thumbnails.contrib.bnf.api:BnfProvider"
-dnb = "rero_invenio_thumbnails.contrib.dnb.api:DnbProvider"
+"bnf" = "rero_invenio_thumbnails.contrib.bnf.api:BnfProvider"
+"dnb" = "rero_invenio_thumbnails.contrib.dnb.api:DnbProvider"
 "google books" = "rero_invenio_thumbnails.contrib.google_books.api:GoogleBooksProvider"
 "google api" = "rero_invenio_thumbnails.contrib.google_api.api:GoogleApiProvider"
 "internet archive" = "rero_invenio_thumbnails.contrib.internet_archive.api:InternetArchiveProvider"
+"syndetics" = "rero_invenio_thumbnails.contrib.syndetics.api:SyndeticsProvider"
 
 # ---------------------------------------------------------------------------
 # Tool configurations

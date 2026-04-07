@@ -42,11 +42,16 @@ RERO_INVENIO_THUMBNAILS_PROVIDERS = [
     "files",
     "bnf",
     "dnb",
+    "syndetics",
     "google books",
     "google api",
     "internet archive",
     "open library"  # Open Library is last because it has frequent timeouts
 ]
+
+# Optional Syndetics client key for authenticated access (higher coverage).
+# Leave empty to use the free unauthenticated tier.
+RERO_INVENIO_THUMBNAILS_SYNDETICS_CLIENT = ""
 
 # Local directory for storing thumbnail files (used by FilesProvider)
 RERO_INVENIO_THUMBNAILS_FILES_DIR = "./thumbnails"
