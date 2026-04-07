@@ -44,6 +44,7 @@ RERO_INVENIO_THUMBNAILS_PROVIDERS = [
     "dnb",
     "google books",
     "google api",
+    "internet archive",
     "open library"  # Open Library is last because it has frequent timeouts
 ]
 
