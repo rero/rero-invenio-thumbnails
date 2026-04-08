@@ -16,222 +16,131 @@
 """Tests for DNB provider."""
 
 import io
-import re
 
 import pytest
+import requests
 from PIL import Image
 
 from rero_invenio_thumbnails.contrib.dnb.api import DnbProvider
 
+_ISBN = "9783161484100"
+_URL = f"https://portal.dnb.de/opac/mvb/cover?isbn={_ISBN}"
 
-def test_dnb_provider_success(app, requests_mock):
-    """Test DNB provider returns cover URL from MARC21-XML."""
-    img = Image.new("RGB", (100, 150), color="blue")
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG")
-    img_bytes.seek(0)
 
-    marc_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
-        <numberOfRecords>1</numberOfRecords>
-        <records>
-            <record>
-                <recordData>
-                    <record xmlns="http://www.loc.gov/MARC21/slim">
-                        <datafield tag="856" ind1="4" ind2="2">
-                            <subfield code="u">https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100</subfield>
-                            <subfield code="x">Cover image</subfield>
-                        </datafield>
-                    </record>
-                </recordData>
-            </record>
-        </records>
-    </searchRetrieveResponse>"""
+def _make_jpeg(width=100, height=150):
+    img = Image.new("RGB", (width, height), color="blue")
+    buf = io.BytesIO()
+    img.save(buf, format="JPEG")
+    buf.seek(0)
+    return buf.getvalue()
 
+
+def test_dnb_init(app):
+    """Test DNB provider initialisation."""
     with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text=marc_xml)
+        provider = DnbProvider()
+        assert provider.name == "dnb"
+        assert "portal.dnb.de" in provider.base_url
+
+
+def test_dnb_get_thumbnail_url_success(app, requests_mock):
+    """Test successful cover retrieval — single HTTP call, no SRU lookup."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url == _URL
+        assert name == "dnb"
+        assert requests_mock.call_count == 1
+
+
+def test_dnb_get_thumbnail_url_hyphenated_isbn(app, requests_mock):
+    """Test that hyphens are stripped before constructing the URL."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url("978-3-16-148410-0")
+
+        assert url == _URL
+        assert name == "dnb"
+
+
+def test_dnb_get_thumbnail_url_not_found(app, requests_mock):
+    """Test that None is returned when DNB returns 404."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=404)
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url is None
+        assert name == "dnb"
+
+
+def test_dnb_get_thumbnail_url_server_error(app, requests_mock):
+    """Test that None is returned when DNB returns 500."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=500)
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url is None
+        assert name == "dnb"
+
+
+def test_dnb_get_thumbnail_url_invalid_content(app, requests_mock):
+    """Test that None is returned when the response is not an image."""
+    with app.app_context():
+        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html></html>")
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url is None
+        assert name == "dnb"
+
+
+def test_dnb_get_thumbnail_url_small_image(app, requests_mock):
+    """Test that placeholder images below min dimension are rejected."""
+    with app.app_context():
         requests_mock.get(
-            "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100",
-            status_code=200,
-            headers={"Content-Type": "image/jpeg"},
-            content=img_bytes.getvalue(),
+            _URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg(width=5, height=5)
         )
 
         provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
+        url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url == "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100"
-        assert provider_name == "dnb"
+        assert url is None
+        assert name == "dnb"
 
 
-def test_dnb_provider_fallback_isbn_construction(app, requests_mock):
-    """Test DNB provider constructs URL from ISBN when no 856 field exists."""
-    img = Image.new("RGB", (100, 150), color="green")
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG")
-    img_bytes.seek(0)
-
-    marc_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
-        <numberOfRecords>1</numberOfRecords>
-        <records>
-            <record>
-                <recordData>
-                    <record xmlns="http://www.loc.gov/MARC21/slim">
-                        <datafield tag="020" ind1=" " ind2=" ">
-                            <subfield code="a">9783161484100</subfield>
-                        </datafield>
-                    </record>
-                </recordData>
-            </record>
-        </records>
-    </searchRetrieveResponse>"""
-
+def test_dnb_get_thumbnail_url_request_exception(app, requests_mock):
+    """Test that a connection error is handled gracefully."""
     with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text=marc_xml)
-        requests_mock.get(
-            "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100",
-            status_code=200,
-            headers={"Content-Type": "image/jpeg"},
-            content=img_bytes.getvalue(),
+        requests_mock.get(_URL, exc=requests.exceptions.ConnectionError("timeout"))
+
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url(_ISBN)
+
+        assert url is None
+        assert name == "dnb"
+
+
+def test_dnb_get_thumbnail_url_empty_isbn(app, requests_mock):
+    """Test that an empty ISBN returns None without making any network calls."""
+    with app.app_context():
+        provider = DnbProvider()
+        url, name = provider.get_thumbnail_url("")
+
+        assert url is None
+        assert name == "dnb"
+        assert requests_mock.call_count == 0, (
+            "DnbProvider.get_thumbnail_url should not make any HTTP request for an empty ISBN"
         )
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
-
-        assert url == "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100"
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_no_results(app, requests_mock):
-    """Test DNB provider handles no results."""
-    marc_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
-        <numberOfRecords>0</numberOfRecords>
-        <records/>
-    </searchRetrieveResponse>"""
-
-    with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text=marc_xml)
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9999999999999")
-
-        assert url is None
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_http_error(app, requests_mock):
-    """Test DNB provider handles HTTP errors."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=500)
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
-
-        assert url is None
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_malformed_xml(app, requests_mock):
-    """Test DNB provider handles malformed XML."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text="<invalid>xml")
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
-
-        assert url is None
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_invalid_isbn(app):
-    """Test DNB provider handles invalid ISBN."""
-    with app.app_context():
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("")
-
-        assert url is None
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_keyword_matching(app, requests_mock):
-    """Test DNB provider finds cover URLs with various keywords."""
-    img = Image.new("RGB", (100, 150), color="red")
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG")
-    img_bytes.seek(0)
-
-    marc_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
-        <numberOfRecords>1</numberOfRecords>
-        <records>
-            <record>
-                <recordData>
-                    <record xmlns="http://www.loc.gov/MARC21/slim">
-                        <datafield tag="856" ind1="4" ind2="2">
-                            <subfield code="u">https://example.com/thumbnail/book123.jpg</subfield>
-                        </datafield>
-                    </record>
-                </recordData>
-            </record>
-        </records>
-    </searchRetrieveResponse>"""
-
-    with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text=marc_xml)
-        requests_mock.get(
-            "https://example.com/thumbnail/book123.jpg",
-            status_code=200,
-            headers={"Content-Type": "image/jpeg"},
-            content=img_bytes.getvalue(),
-        )
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
-
-        assert url == "https://example.com/thumbnail/book123.jpg"
-        assert provider_name == "dnb"
-
-
-def test_dnb_provider_note_matching(app, requests_mock):
-    """Test DNB provider finds cover URLs via subfield x notes."""
-    img = Image.new("RGB", (100, 150), color="yellow")
-    img_bytes = io.BytesIO()
-    img.save(img_bytes, format="JPEG")
-    img_bytes.seek(0)
-
-    marc_xml = """<?xml version="1.0" encoding="UTF-8"?>
-    <searchRetrieveResponse xmlns="http://www.loc.gov/zing/srw/">
-        <numberOfRecords>1</numberOfRecords>
-        <records>
-            <record>
-                <recordData>
-                    <record xmlns="http://www.loc.gov/MARC21/slim">
-                        <datafield tag="856" ind1="4" ind2="2">
-                            <subfield code="u">https://example.com/image/book.jpg</subfield>
-                            <subfield code="x">Umschlagbild</subfield>
-                        </datafield>
-                    </record>
-                </recordData>
-            </record>
-        </records>
-    </searchRetrieveResponse>"""
-
-    with app.app_context():
-        requests_mock.get(re.compile(r".*services\.dnb\.de/sru.*"), status_code=200, text=marc_xml)
-        requests_mock.get(
-            "https://example.com/image/book.jpg",
-            status_code=200,
-            headers={"Content-Type": "image/jpeg"},
-            content=img_bytes.getvalue(),
-        )
-
-        provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783161484100")
-
-        assert url == "https://example.com/image/book.jpg"
-        assert provider_name == "dnb"
 
 
 @pytest.mark.external
@@ -239,8 +148,8 @@ def test_dnb_real_thumbnail_is_valid_image(app):
     """Test that DNB returns a real valid image for a known ISBN."""
     with app.app_context():
         provider = DnbProvider()
-        url, provider_name = provider.get_thumbnail_url("9783730615522")
+        url, name = provider.get_thumbnail_url("9783730615522")
 
-        assert provider_name == "dnb"
+        assert name == "dnb"
         assert url is not None, "DNB returned no cover URL for ISBN 9783730615522"
         assert "portal.dnb.de" in url
