@@ -15,39 +15,19 @@
 
 """DNB (Deutsche Nationalbibliothek) thumbnail provider.
 
-This module provides thumbnail URL discovery for book covers from the German
-National Library (Deutsche Nationalbibliothek). The provider queries the DNB's
-SRU (Search/Retrieve via URL) interface to retrieve bibliographic metadata in
-MARC21-XML format, then extracts cover image URLs from the records.
+Fetches cover images directly from the DNB/MVB cover service using the ISBN.
 
-Key Features:
-    - ISBN-based search via DNB SRU interface
-    - MARC21-XML metadata parsing
-    - Cover URL extraction from field 856 (Electronic Location and Access)
-    - Keyword-based URL identification (cover, thumbnail, bild, umschlag)
-    - Fallback URL construction from ISBN
-    - Automatic retry logic with exponential backoff
+.. warning::
 
-The DNB maintains bibliographic records for publications received through German
-legal deposit and provides access to cover images when available from publishers.
+    Cover images are sourced from **VLB** (Verzeichnis Lieferbarer Bücher,
+    operated by MVB GmbH) and are subject to copyright.  They are **not**
+    freely reusable.  Use requires a valid data licence agreement with MVB.
+    Contact: kundenservice@mvb-online.de
 
-Examples:
-    Basic usage::
+Example::
 
-        from rero_invenio_thumbnails.contrib.dnb.api import DnbProvider
-
-        provider = DnbProvider()
-        url = provider.get_thumbnail_url("9783161484100")
-
-    The provider returns URLs in formats like::
-
-        https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100
-
-API Documentation:
-    See :class:`~rero_invenio_thumbnails.contrib.dnb.api.DnbProvider` for
-    detailed API documentation.
-
-Note:
-    Cover image availability depends on whether publishers have provided
-    cover metadata to the DNB. Not all publications have cover images.
+    from rero_invenio_thumbnails.contrib.dnb.api import DnbProvider
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url("9783161484100")
+    # url == "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100"
 """

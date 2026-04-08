@@ -114,7 +114,7 @@ def _get_retry_config():
     }
 
 
-def fetch_with_retries(url, headers=None, timeout=5):
+def fetch_with_retries(url, headers=None, timeout=5, session=None):
     """Fetch URL with automatic retries on connection errors.
 
     This function makes HTTP GET requests with automatic retry logic for transient
@@ -124,6 +124,10 @@ def fetch_with_retries(url, headers=None, timeout=5):
     :param url: The URL to fetch.
     :param headers: Optional HTTP headers to include in the request. Defaults to None.
     :param timeout: Request timeout in seconds. Defaults to 5.
+    :param session: Optional :class:`requests.Session` to use instead of the
+        module-level ``requests.get``.  Pass a session with a custom
+        :class:`requests.adapters.HTTPAdapter` to control SSL/TLS settings.
+        Defaults to None (uses ``requests.get``).
     :returns: requests.Response object
     :raises requests.RequestException: If the request fails after all retries.
 
@@ -135,12 +139,17 @@ def fetch_with_retries(url, headers=None, timeout=5):
             "https://example.com/api",
             headers={"User-Agent": "MyApp/1.0"},
         )
+        # Custom SSL session (e.g. legacy TLS adapter)
+        s = requests.Session()
+        s.mount("https://", my_adapter)
+        response = fetch_with_retries("https://example.com/", session=s)
     """
+    get_fn = session.get if session is not None else requests.get
     cfg = _get_retry_config()
 
     if _DISABLE_RETRIES or not cfg["enabled"]:
         # In tests or when explicitly disabled, skip retries to avoid slow runs
-        return requests.get(url, headers=headers, timeout=timeout)
+        return get_fn(url, headers=headers, timeout=timeout)
 
     retrying = Retrying(
         stop=stop_after_attempt(cfg["attempts"]),
@@ -153,7 +162,7 @@ def fetch_with_retries(url, headers=None, timeout=5):
         reraise=True,
     )
 
-    return retrying(requests.get, url, headers=headers, timeout=timeout)
+    return retrying(get_fn, url, headers=headers, timeout=timeout)
 
 
 def validate_image_content(content, provider_name="", isbn="", min_dimension=None):
@@ -211,7 +220,7 @@ def validate_image_content(content, provider_name="", isbn="", min_dimension=Non
         return False
 
 
-def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimension=None, headers=None):
+def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimension=None, headers=None, session=None):
     """Fetch a thumbnail URL and validate it contains a real image.
 
     This helper function combines the common pattern of fetching a thumbnail URL,
@@ -225,6 +234,8 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimens
     :param min_dimension: Minimum width/height in pixels for validation. Defaults to
                           RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION from app config.
     :param headers: Optional HTTP headers to include in the request. Defaults to None.
+    :param session: Optional :class:`requests.Session` passed to
+        :func:`fetch_with_retries`. Defaults to None.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
     Example::
@@ -240,7 +251,7 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=5, min_dimens
         Validates both HTTP status code and image content (dimensions, format).
     """
     try:
-        response = fetch_with_retries(url, headers=headers, timeout=timeout)
+        response = fetch_with_retries(url, headers=headers, timeout=timeout, session=session)
     except requests.RequestException:
         # Catch network-related errors only; let other exceptions propagate
         return False
