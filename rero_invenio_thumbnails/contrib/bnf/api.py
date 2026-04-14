@@ -67,9 +67,9 @@ class BnfProvider(BaseProvider):
             url, name = provider.get_thumbnail_url("978-2-07-036028-4")
             # url == "https://openapi.bnf.fr/couverture/image/image/recupererImage?ISBN=9782070360284&couverture=1"
         """
-        clean = clean_isbn(isbn)
-        url = f"{self.base_url}?ISBN={clean}&couverture={self.cover_page}"
+        clean_isbn_value = clean_isbn(isbn)
+        url = f"{self.base_url}?ISBN={clean_isbn_value}&couverture={self.cover_page}"
 
-        if fetch_and_validate_thumbnail(url, "BNF", clean, timeout=10, headers=self.headers):
+        if fetch_and_validate_thumbnail(url, "BNF", clean_isbn_value, timeout=(2, 10), headers=self.headers):
             return url, self.name
         return None, self.name

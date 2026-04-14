@@ -127,9 +127,6 @@ def app():
     app = Flask(__name__)
     app.config["TESTING"] = True
 
-    # Disable HTTP retries for all tests
-    app.config["RERO_INVENIO_THUMBNAILS_RETRY_ENABLED"] = False
-
     # Set empty providers by default for tests (tests configure explicitly)
     app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
 
@@ -149,4 +146,5 @@ def app():
         with app.app_context():
             current_cache.clear()
 
-    return app
+    with app.app_context():
+        yield app

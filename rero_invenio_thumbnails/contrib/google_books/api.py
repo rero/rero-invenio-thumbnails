@@ -24,7 +24,6 @@ from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
     fetch_and_validate_thumbnail,
-    fetch_with_retries,
     handle_provider_errors,
 )
 
@@ -72,23 +71,28 @@ class GoogleBooksProvider(BaseProvider):
         # Clean ISBN (remove hyphens and spaces)
         clean_isbn_value = clean_isbn(isbn)
         url = f"{self.base_url}?jscmd=viewapi&callback=book&bibkeys={clean_isbn_value}"
-        response = fetch_with_retries(url)
-        if response.status_code == requests.codes.ok:
-            # JSONP comes as: book({...});
-            text = response.text.strip()
-            start = text.find("(")
-            end = text.rfind(")")
-            if start != -1 and end != -1 and end > start:
-                json_text = text[start + 1 : end]
-                try:
-                    data = json.loads(json_text)
-                    if (
-                        thumbnail_url := data.get(clean_isbn_value, {}).get("thumbnail_url")
-                    ) and fetch_and_validate_thumbnail(thumbnail_url, "Google Books", clean_isbn_value):
-                        return thumbnail_url, self.name
-                    return None, self.name
-                except ValueError:
-                    current_app.logger.error(f"Error parsing JSONP response for ISBN {clean_isbn_value}")
-                    return None, self.name
-            current_app.logger.debug(f"Unexpected Google Books JSONP format for ISBN {clean_isbn_value}")
+        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
+        response = requests.get(url, timeout=timeout)
+        if response.status_code != requests.codes.ok:
+            current_app.logger.debug(
+                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
+            )
+            return None, self.name
+        # JSONP comes as: book({...});
+        text = response.text.strip()
+        start = text.find("(")
+        end = text.rfind(")")
+        if start != -1 and end != -1 and end > start:
+            json_text = text[start + 1 : end]
+            try:
+                data = json.loads(json_text)
+                if (
+                    thumbnail_url := data.get(clean_isbn_value, {}).get("thumbnail_url")
+                ) and fetch_and_validate_thumbnail(thumbnail_url, self.name, clean_isbn_value):
+                    return thumbnail_url, self.name
+                return None, self.name
+            except ValueError:
+                current_app.logger.error(f"Error parsing JSONP response for ISBN {clean_isbn_value}")
+                return None, self.name
+        current_app.logger.debug(f"Unexpected {self.name} JSONP format for ISBN {clean_isbn_value}")
         return None, self.name

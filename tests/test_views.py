@@ -36,7 +36,7 @@ def client(app):
 
 def test_get_thumbnail_url_endpoint_success(app, client):
     """Test successful JSON response from /thumbnails-url endpoint."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         mock.return_value = ("https://example.com/cover.jpg", "open library")
 
         response = client.get("/thumbnails-url/9780134685991")
@@ -50,7 +50,7 @@ def test_get_thumbnail_url_endpoint_success(app, client):
 
 def test_get_thumbnail_url_endpoint_not_found(app, client):
     """Test 404 response when no thumbnail URL found."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         mock.return_value = (None, "open library")
 
         response = client.get("/thumbnails-url/9999999999999")
@@ -64,7 +64,7 @@ def test_get_thumbnail_url_endpoint_not_found(app, client):
 
 def test_get_thumbnail_url_endpoint_cached_false(app, client):
     """Test that cached=false query param is forwarded correctly."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         mock.return_value = ("https://example.com/cover.jpg", "files")
 
         client.get("/thumbnails-url/9780134685991?cached=false")
@@ -74,7 +74,7 @@ def test_get_thumbnail_url_endpoint_cached_false(app, client):
 
 def test_get_thumbnail_url_endpoint_cached_true_by_default(app, client):
     """Test that cached defaults to True when not specified."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         mock.return_value = ("https://example.com/cover.jpg", "files")
 
         client.get("/thumbnails-url/9780134685991")
@@ -84,7 +84,7 @@ def test_get_thumbnail_url_endpoint_cached_true_by_default(app, client):
 
 def test_get_thumbnail_url_endpoint_server_error(app, client):
     """Test 500 response when an exception is raised in the view."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         mock.side_effect = Exception("unexpected")
 
         response = client.get("/thumbnails-url/9780134685991")
@@ -97,7 +97,7 @@ def test_get_thumbnail_url_endpoint_server_error(app, client):
 
 def test_get_thumbnail_url_endpoint_cache_headers_positive_max_age(app, client):
     """Test Cache-Control header is set when max_age > 0."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 3600
         mock.return_value = ("https://example.com/cover.jpg", "open library")
 
@@ -110,7 +110,7 @@ def test_get_thumbnail_url_endpoint_cache_headers_positive_max_age(app, client):
 
 def test_get_thumbnail_url_endpoint_no_cache_when_max_age_zero(app, client):
     """Test no-cache headers when max_age is 0 (covers add_cache_headers else branch)."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock:
         app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 0
         mock.return_value = ("https://example.com/cover.jpg", "open library")
 
@@ -129,7 +129,7 @@ def test_get_thumbnail_url_endpoint_no_cache_when_max_age_zero(app, client):
 
 def test_serve_thumbnail_jpeg_success(app, client):
     """Test serving a JPEG thumbnail file."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -147,7 +147,7 @@ def test_serve_thumbnail_jpeg_success(app, client):
 
 def test_serve_thumbnail_png_success(app, client):
     """Test serving a PNG thumbnail file."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685992"
         path = os.path.join(temp_dir, f"{isbn}.png")
@@ -162,7 +162,7 @@ def test_serve_thumbnail_png_success(app, client):
 
 def test_serve_thumbnail_not_found(app, client):
     """Test 404 when no thumbnail file exists for the ISBN."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
 
         response = client.get("/thumbnails/9999999999999")
@@ -175,17 +175,16 @@ def test_serve_thumbnail_not_found(app, client):
 
 def test_serve_thumbnail_directory_missing(app, client):
     """Test 404 when the configured directory does not exist."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent/path"
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent/path"
 
-        response = client.get("/thumbnails/9780134685991")
+    response = client.get("/thumbnails/9780134685991")
 
-        assert response.status_code == 404
+    assert response.status_code == 404
 
 
 def test_serve_thumbnail_etag_304_on_match(app, client):
     """Test 304 Not Modified when ETag matches If-None-Match header."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -203,7 +202,7 @@ def test_serve_thumbnail_etag_304_on_match(app, client):
 
 def test_serve_thumbnail_etag_200_on_mismatch(app, client):
     """Test 200 when ETag does not match If-None-Match header."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -217,7 +216,7 @@ def test_serve_thumbnail_etag_200_on_mismatch(app, client):
 
 def test_serve_thumbnail_if_modified_since_304(app, client):
     """Test 304 Not Modified when file not modified since client date."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -234,7 +233,7 @@ def test_serve_thumbnail_if_modified_since_304(app, client):
 
 def test_serve_thumbnail_if_modified_since_invalid_date(app, client):
     """Test 200 when If-Modified-Since header has an unparseable date."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -249,7 +248,7 @@ def test_serve_thumbnail_if_modified_since_invalid_date(app, client):
 
 def test_serve_thumbnail_etag_changes_after_file_update(app, client):
     """Test ETag changes when the file is updated."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
         path = os.path.join(temp_dir, f"{isbn}.jpg")
@@ -268,7 +267,7 @@ def test_serve_thumbnail_etag_changes_after_file_update(app, client):
 
 def test_serve_thumbnail_cache_headers_positive_max_age(app, client):
     """Test Cache-Control header with max_age > 0 on image response."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 86400
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
@@ -284,7 +283,7 @@ def test_serve_thumbnail_cache_headers_positive_max_age(app, client):
 
 def test_serve_thumbnail_no_cache_when_max_age_zero(app, client):
     """Test no-cache headers on image response when max_age is 0."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 0
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         isbn = "9780134685991"
@@ -300,7 +299,7 @@ def test_serve_thumbnail_no_cache_when_max_age_zero(app, client):
 
 def test_serve_thumbnail_exception_returns_500(app, client):
     """Test 500 response when FilesProvider raises an unexpected exception."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.FilesProvider") as mock_cls:
+    with patch("rero_invenio_thumbnails.views.FilesProvider") as mock_cls:
         mock_cls.return_value.get_thumbnail_path.side_effect = RuntimeError("disk failure")
 
         response = client.get("/thumbnails/9780134685991")

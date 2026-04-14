@@ -62,6 +62,9 @@ add_exceptions() {
     pip_audit_exceptions="$pip_audit_exceptions --ignore-vuln $1"""
 }
 
+# pytest 8.4.2   CVE-2025-71176 9.0.3
+add_exceptions CVE-2025-71176
+
 info_msg "Check vulnerabilities:"
 pip-audit ${pip_audit_exceptions}
 
@@ -71,6 +74,6 @@ info_msg "Test linting:"
 ruff check
 
 info_msg "Tests:"
-pytest
+pytest "$@"
 
 exit $?

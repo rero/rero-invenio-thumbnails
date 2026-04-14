@@ -11,7 +11,10 @@ flowchart TD
     C -->|no| G[read PROVIDERS list\nfrom app.config]
 
     G --> H{providers\nempty?}
-    H -->|yes| Y[return None, None]
+    H -->|yes| Y{cached=True?}
+    Y -->|yes| Y1[cache.set JSON null+null]
+    Y1 --> Y2([return None, None])
+    Y -->|no| Y2
 
     H -->|no| I[for each provider_name]
     I --> J{name in\nPROVIDERS?}
@@ -32,11 +35,12 @@ flowchart TD
     P -->|no| Z
 
     I -->|exhausted| R{cached=True?}
-    R -->|yes| S[cache.set\nJSON null+last_provider]
-    S --> T([return None, last_provider])
+    R -->|yes| S[cache.set\nJSON null+null]
+    S --> T([return None, None])
     R -->|no| T
 
     subgraph providers [registered providers – entry points resolved at registry build]
+        AMAZON[AmazonProvider\namazon]
         BNF[BnfProvider\nbnf]
         DNB[DnbProvider\ndnb]
         FILES[FilesProvider\nfiles]

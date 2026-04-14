@@ -29,8 +29,11 @@ The providers follow a common pattern:
 Available Providers:
     bnf: Bibliothèque nationale de France provider
         - Uses BNF catalogue API
-        - Converts ISBN to ARK identifiers
         - Covers for French publications since 2010
+
+    dnb: Deutsche Nationalbibliothek provider
+        - Uses DNB/MVB cover service
+        - Covers for German publications
 
     files: Local file storage provider
         - Searches local file system
@@ -47,6 +50,10 @@ Available Providers:
         - JSONP callback format
         - Public access without authentication
 
+    internet_archive: Internet Archive provider
+        - Resolves ISBN to OCAID via search API
+        - Free, no authentication required
+
     open_library: Open Library covers API provider
         - Free and open-source
         - Configurable sizes (S, M, L)
@@ -54,7 +61,6 @@ Available Providers:
 
     utils: Shared utility functions
         - clean_isbn(): Remove hyphens and spaces from ISBN
-        - fetch_with_retries(): HTTP requests with retry logic
         - validate_image_content(): Image validation (format, dimensions)
         - handle_provider_errors(): Standardized error handling decorator
 
@@ -66,10 +72,10 @@ Provider Interface:
                 # Initialize provider with configuration
                 pass
 
-            def get_thumbnail_url(self, isbn: str) -> str | None:
+            def get_thumbnail_url(self, isbn):
                 # Retrieve thumbnail URL for ISBN
                 # :param isbn: ISBN-10 or ISBN-13 (with or without hyphens)
-                # :returns: Thumbnail URL if found, None otherwise
+                # :returns: tuple (url_or_None, provider_name)
                 pass
 
 Usage Pattern::
@@ -82,8 +88,9 @@ Usage Pattern::
     providers = [BnfProvider(), OpenLibraryProvider()]
 
     for provider in providers:
-        if url := provider.get_thumbnail_url(isbn):
-            print(f"Found: {url}")
+        url, provider_name = provider.get_thumbnail_url(isbn)
+        if url:
+            print(f"Found: {url} from {provider_name}")
             break
     else:
         print("No thumbnail found")
@@ -95,26 +102,15 @@ Error Handling:
     - Catches and logs all other exceptions
     - Returns None on any error for graceful fallback
 
-Retry Logic:
-    HTTP requests use fetch_with_retries() with:
-    - Exponential backoff between retries
-    - Configurable retry attempts (default: 5)
-    - Disabled during testing for performance
-    - Handles transient network failures
-
 Image Validation:
     All providers validate images using validate_image_content():
     - Checks for non-empty content
     - Validates image format with PIL
-    - Verifies minimum dimensions (10x10px default)
+    - Verifies minimum dimensions (50x50px default)
     - Filters out placeholder images
 
 Configuration:
     Provider behavior can be configured via Flask configuration:
-    - RERO_INVENIO_THUMBNAILS_RETRY_ATTEMPTS
-    - RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MULTIPLIER
-    - RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MIN
-    - RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MAX
     - RERO_INVENIO_THUMBNAILS_FILES_DIR (for files provider)
 
 Note:

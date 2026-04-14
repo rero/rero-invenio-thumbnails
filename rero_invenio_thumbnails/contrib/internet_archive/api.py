@@ -24,9 +24,8 @@ from flask import current_app
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
-    fetch_and_validate_thumbnail,
-    fetch_with_retries,
     handle_provider_errors,
+    validate_image_content,
 )
 
 
@@ -73,16 +72,19 @@ class InternetArchiveProvider(BaseProvider):
         params = {"q": f"isbn:{isbn}", "fl[]": "identifier", "output": "json", "rows": 1}
         url = f"{self.search_url}?{urlencode(params, doseq=True)}"
         try:
-            response = fetch_with_retries(url, headers=self.headers)
+            response = requests.get(url, headers=self.headers, timeout=(3, 15))
             if response.status_code != requests.codes.ok:
+                current_app.logger.debug(
+                    f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {isbn}: {url}"
+                )
                 return None
             docs = response.json().get("response", {}).get("docs", [])
             if docs:
                 return docs[0].get("identifier")
         except requests.RequestException as exc:
-            current_app.logger.warning(f"Internet Archive search failed for ISBN {isbn}: {exc}")
+            current_app.logger.warning(f"{self.name} search failed for ISBN {isbn}: {exc}")
         except (ValueError, KeyError) as exc:
-            current_app.logger.warning(f"Internet Archive response parse error for ISBN {isbn}: {exc}")
+            current_app.logger.warning(f"{self.name} response parse error for ISBN {isbn}: {exc}")
         return None
 
     @handle_provider_errors("Internet Archive")
@@ -105,8 +107,9 @@ class InternetArchiveProvider(BaseProvider):
 
         Note:
             - No authentication required (open access).
-            - Returns (None, "internet archive") if no matching item exists
-              or the cover image fails validation.
+            - Returns (None, "internet archive") if no matching item exists,
+              if the service redirects to the generic notfound.png placeholder,
+              or if the cover image fails validation.
         """
         clean_isbn_value = clean_isbn(isbn)
         ocaid = self.isbn_to_ocaid(clean_isbn_value)
@@ -114,7 +117,22 @@ class InternetArchiveProvider(BaseProvider):
             return None, self.name
 
         url = f"https://archive.org/services/img/{ocaid}"
-        if fetch_and_validate_thumbnail(url, "Internet Archive", clean_isbn_value, headers=self.headers):
+        try:
+            response = requests.get(url, headers=self.headers, timeout=(3, 30))
+        except requests.RequestException as exc:
+            current_app.logger.warning(f"Internet Archive cover fetch failed for ISBN {clean_isbn_value}: {exc}")
+            return None, self.name
+
+        # Reject redirect to the generic "not found" placeholder
+        if "notfound" in response.url:
+            return None, self.name
+
+        if response.status_code != requests.codes.ok:
+            current_app.logger.debug(
+                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
+            )
+            return None, self.name
+        if validate_image_content(response.content, self.name, clean_isbn_value):
             return url, self.name
 
         return None, self.name

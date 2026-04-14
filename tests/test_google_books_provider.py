@@ -36,164 +36,152 @@ except ImportError:
 
 def test_google_books_get_thumbnail_url_success(app, requests_mock):
     """Test successful thumbnail URL retrieval."""
-    with app.app_context():
-        thumbnail_url = "https://books.google.com/books/about/book"
-        response_data = {"9780134685991": {"thumbnail_url": thumbnail_url}}
-        response_text = f"book({json.dumps(response_data)})"
-        requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
-        requests_mock.get(thumbnail_url, content=create_test_image(), status_code=200)
+    thumbnail_url = "https://books.google.com/books/about/book"
+    response_data = {"9780134685991": {"thumbnail_url": thumbnail_url}}
+    response_text = f"book({json.dumps(response_data)})"
+    requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
+    requests_mock.get(thumbnail_url, content=create_test_image(), status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is not None
-        assert provider_name == "google books"
-        assert "books.google.com" in url
+    assert url is not None
+    assert provider_name == "google books"
+    assert "books.google.com" in url
 
 
 def test_google_books_get_thumbnail_url_not_found(app, requests_mock):
     """Test thumbnail URL retrieval when book not found."""
-    with app.app_context():
-        response_text = f"book({json.dumps({})})"
-        requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
+    response_text = f"book({json.dumps({})})"
+    requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_no_preview(app, requests_mock):
     """Test thumbnail URL retrieval when no preview available."""
-    with app.app_context():
-        response_data = {"9780134685991": {"title": "Test Book"}}
-        response_text = f"book({json.dumps(response_data)})"
-        requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
+    response_data = {"9780134685991": {"title": "Test Book"}}
+    response_text = f"book({json.dumps(response_data)})"
+    requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_server_error(app, requests_mock):
     """Test thumbnail URL retrieval with server error."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*"), status_code=500)
+    requests_mock.get(re.compile(r".*"), status_code=500)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_jsonp_parsing(app, requests_mock):
     """Test JSONP response parsing."""
-    with app.app_context():
-        thumbnail_url = "https://books.google.com/books/about/test"
-        response_data = {
-            "9780134685991": {
-                "thumbnail_url": thumbnail_url,
-                "info_url": "https://books.google.com/books?id=test",
-            }
+    thumbnail_url = "https://books.google.com/books/about/test"
+    response_data = {
+        "9780134685991": {
+            "thumbnail_url": thumbnail_url,
+            "info_url": "https://books.google.com/books?id=test",
         }
-        response_text = f"book({json.dumps(response_data)})"
-        requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
-        requests_mock.get(thumbnail_url, content=create_test_image(), status_code=200)
+    }
+    response_text = f"book({json.dumps(response_data)})"
+    requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
+    requests_mock.get(thumbnail_url, content=create_test_image(), status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url == "https://books.google.com/books/about/test"
-        assert provider_name == "google books"
+    assert url == "https://books.google.com/books/about/test"
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_api_endpoint(app, requests_mock):
     """Test that correct API endpoint is called."""
-    with app.app_context():
-        response_text = f"book({json.dumps({})})"
-        requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
+    response_text = f"book({json.dumps({})})"
+    requests_mock.get(re.compile(r".*"), text=response_text, status_code=200)
 
-        isbn = "9780134685991"
-        GoogleBooksProvider().get_thumbnail_url(isbn)
+    isbn = "9780134685991"
+    GoogleBooksProvider().get_thumbnail_url(isbn)
 
-        assert len(requests_mock.request_history) > 0
-        request_url = requests_mock.request_history[0].url
-        assert "books.google.com" in request_url
-        assert "jscmd=viewapi" in request_url
-        assert "callback=book" in request_url
-        assert isbn in request_url
+    assert len(requests_mock.request_history) > 0
+    request_url = requests_mock.request_history[0].url
+    assert "books.google.com" in request_url
+    assert "jscmd=viewapi" in request_url
+    assert "callback=book" in request_url
+    assert isbn in request_url
 
 
 def test_google_books_get_thumbnail_url_request_exception(app, requests_mock):
     """Test thumbnail URL retrieval with request exception."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*"), exc=requests.RequestException("Connection error"))
+    requests_mock.get(re.compile(r".*"), exc=requests.RequestException("Connection error"))
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_json_decode_error(app, requests_mock):
     """Test thumbnail URL retrieval with malformed JSON."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*"), text="book(invalid json)", status_code=200)
+    requests_mock.get(re.compile(r".*"), text="book(invalid json)", status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_multiple_isbns(app, requests_mock):
     """Test thumbnail URL retrieval with multiple ISBN responses."""
-    with app.app_context():
-        url1 = "https://books.google.com/books/about/book1"
-        url2 = "https://books.google.com/books/about/book2"
-        response_data = {
-            "9780134685991": {"thumbnail_url": url1},
-            "9780596007124": {"thumbnail_url": url2},
-        }
-        response_text = f"book({json.dumps(response_data)})"
-        requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
-        requests_mock.get(url1, content=create_test_image(), status_code=200)
-        requests_mock.get(url2, content=create_test_image(), status_code=200)
+    url1 = "https://books.google.com/books/about/book1"
+    url2 = "https://books.google.com/books/about/book2"
+    response_data = {
+        "9780134685991": {"thumbnail_url": url1},
+        "9780596007124": {"thumbnail_url": url2},
+    }
+    response_text = f"book({json.dumps(response_data)})"
+    requests_mock.get("https://books.google.com/books", text=response_text, status_code=200)
+    requests_mock.get(url1, content=create_test_image(), status_code=200)
+    requests_mock.get(url2, content=create_test_image(), status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url == "https://books.google.com/books/about/book1"
-        assert provider_name == "google books"
+    assert url == "https://books.google.com/books/about/book1"
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_unexpected_format(app, requests_mock):
     """Test thumbnail URL retrieval with unexpected JSONP format (no parentheses)."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*"), text="invalid response without parentheses", status_code=200)
+    requests_mock.get(re.compile(r".*"), text="invalid response without parentheses", status_code=200)
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 def test_google_books_get_thumbnail_url_generic_exception(app, requests_mock):
     """Test thumbnail URL retrieval with generic exception."""
-    with app.app_context():
-        requests_mock.get(re.compile(r".*"), exc=RuntimeError("Unexpected error"))
+    requests_mock.get(re.compile(r".*"), exc=RuntimeError("Unexpected error"))
 
-        url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
 
-        assert url is None
-        assert provider_name == "google books"
+    assert url is None
+    assert provider_name == "google books"
 
 
 @pytest.mark.external
 def test_google_books_real_thumbnail_url_returned(app):
     """Test that Google Books returns a thumbnail URL for a known ISBN."""
-    with app.app_context():
-        provider = GoogleBooksProvider()
-        url, provider_name = provider.get_thumbnail_url("9780134685991")
+    provider = GoogleBooksProvider()
+    url, provider_name = provider.get_thumbnail_url("9780134685991")
 
-        assert provider_name == "google books"
-        assert url is not None, "Google Books returned no cover URL for ISBN 9780134685991"
-        assert "books.google.com" in url
+    assert provider_name == "google books"
+    assert url is not None, "Google Books returned no cover URL for ISBN 9780134685991"
+    assert "books.google.com" in url

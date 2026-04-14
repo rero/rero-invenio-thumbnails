@@ -166,17 +166,14 @@ def serve_thumbnail(isbn):
         last_modified = datetime.fromtimestamp(file_mtime, tz=timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         # Check If-None-Match header (ETag-based conditional request)
-        if_none_match = request.headers.get("If-None-Match")
-        if if_none_match == etag:
+        if (if_none_match := request.headers.get("If-None-Match")) and if_none_match == etag:
             # Client has current version, return 304 Not Modified
             response = make_response("", 304)
             response.headers["ETag"] = etag
             response.headers["Last-Modified"] = last_modified
             return add_cache_headers(response), 304
 
-        # Check If-Modified-Since header (date-based conditional request)
-        if_modified_since = request.headers.get("If-Modified-Since")
-        if if_modified_since:
+        if if_modified_since := request.headers.get("If-Modified-Since"):
             with suppress(ValueError):
                 client_date = datetime.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT").replace(
                     tzinfo=timezone.utc

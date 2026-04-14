@@ -37,119 +37,109 @@ def _make_jpeg(width=100, height=150):
 
 def test_dnb_init(app):
     """Test DNB provider initialisation."""
-    with app.app_context():
-        provider = DnbProvider()
-        assert provider.name == "dnb"
-        assert "portal.dnb.de" in provider.base_url
+    provider = DnbProvider()
+    assert provider.name == "dnb"
+    assert "portal.dnb.de" in provider.base_url
 
 
 def test_dnb_get_thumbnail_url_success(app, requests_mock):
     """Test successful cover retrieval — single HTTP call, no SRU lookup."""
-    with app.app_context():
-        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
+    requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url == _URL
-        assert name == "dnb"
-        assert requests_mock.call_count == 1
+    assert url == _URL
+    assert name == "dnb"
+    assert requests_mock.call_count == 1
 
 
 def test_dnb_get_thumbnail_url_hyphenated_isbn(app, requests_mock):
     """Test that hyphens are stripped before constructing the URL."""
-    with app.app_context():
-        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
+    requests_mock.get(_URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg())
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url("978-3-16-148410-0")
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url("978-3-16-148410-0")
 
-        assert url == _URL
-        assert name == "dnb"
+    assert url == _URL
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_not_found(app, requests_mock):
     """Test that None is returned when DNB returns 404."""
-    with app.app_context():
-        requests_mock.get(_URL, status_code=404)
+    requests_mock.get(_URL, status_code=404)
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url is None
-        assert name == "dnb"
+    assert url is None
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_server_error(app, requests_mock):
     """Test that None is returned when DNB returns 500."""
-    with app.app_context():
-        requests_mock.get(_URL, status_code=500)
+    requests_mock.get(_URL, status_code=500)
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url is None
-        assert name == "dnb"
+    assert url is None
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_invalid_content(app, requests_mock):
     """Test that None is returned when the response is not an image."""
-    with app.app_context():
-        requests_mock.get(_URL, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html></html>")
+    requests_mock.get(_URL, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html></html>")
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url is None
-        assert name == "dnb"
+    assert url is None
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_small_image(app, requests_mock):
     """Test that placeholder images below min dimension are rejected."""
-    with app.app_context():
-        requests_mock.get(
-            _URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg(width=5, height=5)
-        )
+    requests_mock.get(
+        _URL, status_code=200, headers={"Content-Type": "image/jpeg"}, content=_make_jpeg(width=5, height=5)
+    )
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url is None
-        assert name == "dnb"
+    assert url is None
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_request_exception(app, requests_mock):
     """Test that a connection error is handled gracefully."""
-    with app.app_context():
-        requests_mock.get(_URL, exc=requests.exceptions.ConnectionError("timeout"))
+    requests_mock.get(_URL, exc=requests.exceptions.ConnectionError("timeout"))
 
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url(_ISBN)
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
 
-        assert url is None
-        assert name == "dnb"
+    assert url is None
+    assert name == "dnb"
 
 
 def test_dnb_get_thumbnail_url_empty_isbn(app, requests_mock):
     """Test that an empty ISBN returns None without making any network calls."""
-    with app.app_context():
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url("")
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url("")
 
-        assert url is None
-        assert name == "dnb"
-        assert requests_mock.call_count == 0, (
-            "DnbProvider.get_thumbnail_url should not make any HTTP request for an empty ISBN"
-        )
+    assert url is None
+    assert name == "dnb"
+    assert requests_mock.call_count == 0, (
+        "DnbProvider.get_thumbnail_url should not make any HTTP request for an empty ISBN"
+    )
 
 
 @pytest.mark.external
 def test_dnb_real_thumbnail_is_valid_image(app):
     """Test that DNB returns a real valid image for a known ISBN."""
-    with app.app_context():
-        provider = DnbProvider()
-        url, name = provider.get_thumbnail_url("9783730615522")
+    provider = DnbProvider()
+    url, name = provider.get_thumbnail_url("9783730615522")
 
-        assert name == "dnb"
-        assert url is not None, "DNB returned no cover URL for ISBN 9783730615522"
-        assert "portal.dnb.de" in url
+    assert name == "dnb"
+    assert url is not None, "DNB returned no cover URL for ISBN 9783730615522"
+    assert "portal.dnb.de" in url

@@ -23,7 +23,6 @@ Features:
     - Chainable provider pattern (first match wins)
     - Redis caching integration via invenio_cache
     - HTTP blueprint endpoint for thumbnail serving
-    - Retry/backoff support for external provider queries
     - Comprehensive error handling and logging
 
 Usage:
@@ -42,24 +41,30 @@ Configuration:
 from importlib.metadata import version
 
 from .api import get_thumbnail_url
+from .contrib.amazon.api import AmazonProvider
 from .contrib.bnf.api import BnfProvider
 from .contrib.dnb.api import DnbProvider
 from .contrib.files.api import FilesProvider
 from .contrib.google_api.api import GoogleApiProvider
 from .contrib.google_books.api import GoogleBooksProvider
+from .contrib.internet_archive.api import InternetArchiveProvider
 from .contrib.open_library.api import OpenLibraryProvider
+from .contrib.utils import clean_all_cache
 from .ext import REROInvenioThumbnails
 
 __version__ = version("rero-invenio-thumbnails")
 
 __all__ = (
+    "AmazonProvider",
     "BnfProvider",
     "DnbProvider",
     "FilesProvider",
     "GoogleApiProvider",
     "GoogleBooksProvider",
+    "InternetArchiveProvider",
     "OpenLibraryProvider",
     "REROInvenioThumbnails",
     "__version__",
+    "clean_all_cache",
     "get_thumbnail_url",
 )
