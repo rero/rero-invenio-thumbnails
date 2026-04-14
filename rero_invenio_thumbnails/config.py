@@ -38,12 +38,16 @@ RERO_INVENIO_THUMBNAILS_CACHE_KEY_PREFIX = "rero_thumbnails"
 # List of thumbnail providers to query in order (first match wins).
 # Default provider order optimized for typical usage patterns.
 # Override in instance config to customize provider precedence.
+#
+# Note: "dnb" is NOT included by default because its cover images are sourced
+# from VLB (operated by MVB GmbH) and require a paid data licence.  To enable
+# it, add "dnb" to your instance-specific RERO_INVENIO_THUMBNAILS_PROVIDERS.
 RERO_INVENIO_THUMBNAILS_PROVIDERS = [
     "files",
-    "bnf",
-    "dnb",
     "google books",
     "google api",
+    "bnf",
+    "amazon",
     "internet archive",
     "open library"  # Open Library is last because it has frequent timeouts
 ]
@@ -58,18 +62,6 @@ RERO_INVENIO_THUMBNAILS_CACHE_EXPIRE = 60 * 60
 # Set to 0 to disable HTTP caching
 RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE = 86400
 
-# HTTP Retry Configuration
-# Enable/disable automatic retries for failed HTTP requests to external providers
-RERO_INVENIO_THUMBNAILS_RETRY_ENABLED = True
-
-# Maximum number of retry attempts before giving up
-RERO_INVENIO_THUMBNAILS_RETRY_ATTEMPTS = 5
-
-# Exponential backoff multiplier (seconds between retries grow exponentially)
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MULTIPLIER = 0.5
-
-# Minimum wait time between retries (seconds)
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MIN = 1
-
-# Maximum wait time between retries (seconds)
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MAX = 10
+# Default HTTP request timeout as (connect, read) in seconds for cover image fetches.
+# Increase if providers are timing out; decrease for faster fallback to next provider.
+RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT = (2, 10)

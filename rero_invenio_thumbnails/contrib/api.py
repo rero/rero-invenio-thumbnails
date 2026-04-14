@@ -27,6 +27,8 @@ Example:
         class MyCustomProvider(BaseProvider):
             '''Custom provider for fetching thumbnails.'''
 
+            name = "my_custom"
+
             def get_thumbnail_url(self, isbn):
                 '''Fetch thumbnail URL for the given ISBN.
 

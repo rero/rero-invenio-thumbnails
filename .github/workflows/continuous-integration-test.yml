@@ -4,6 +4,9 @@ on: [push, pull_request, workflow_dispatch]
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
     strategy:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
@@ -38,3 +41,4 @@ jobs:
       continue-on-error: true
       with:
         format: cobertura
+        github-token: ${{ secrets.GITHUB_TOKEN }}

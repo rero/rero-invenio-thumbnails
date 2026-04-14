@@ -110,12 +110,8 @@ class FilesProvider(BaseProvider):
             - URL is constructed from the Flask application URL root
             - Requires the application context to be active
         """
-        # First check if the file exists (get_thumbnail_path will clean the ISBN)
-        thumbnail_path = self.get_thumbnail_path(isbn)
-
-        if not thumbnail_path:
+        clean_isbn_value = clean_isbn(isbn)
+        if not self.get_thumbnail_path(clean_isbn_value):
             return None, self.name
 
-        # Clean ISBN for URL construction
-        clean_isbn_value = clean_isbn(isbn)
         return f"{self.base_url}/thumbnails/{clean_isbn_value}", self.name

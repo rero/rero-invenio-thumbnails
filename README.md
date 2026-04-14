@@ -29,10 +29,9 @@ RERO Invenio extension to discover book thumbnail URLs from multiple providers.
 ## Features
 
 - **Multiple Providers**: Chainable providers query external services in order and return the first available thumbnail URL
-- **Built-in Providers**: FilesProvider (local files), OpenLibraryProvider, BnfProvider, DnbProvider, GoogleBooksProvider, GoogleApiProvider
+- **Built-in Providers**: FilesProvider (local files), GoogleBooksProvider, GoogleApiProvider, AmazonProvider, DnbProvider, BnfProvider, InternetArchiveProvider, OpenLibraryProvider
 - **Plugin Architecture**: Extensible via entry points - register custom providers without modifying core code
 - **Smart Caching**: Redis-based caching with configurable TTL
-- **Robust HTTP Handling**: Configurable retry logic with exponential backoff for external providers
 - **RESTful API**: JSON endpoint for thumbnail URL retrieval
 
 ## Custom Providers
@@ -75,23 +74,29 @@ Configure the providers and files dir in your application config:
 
 ```python
 # Provider configuration (optional - if not set, all discovered providers are used)
-RERO_INVENIO_THUMBNAILS_PROVIDERS = ["files", "open library", "bnf", "dnb", "google books", "google api"]
+RERO_INVENIO_THUMBNAILS_PROVIDERS = [
+    "files",
+    "google books",
+    "google api",
+    "amazon",
+    "bnf",
+    "internet archive",
+    "open library",
+]
 
 # Files provider configuration
 RERO_INVENIO_THUMBNAILS_FILES_DIR = "/path/to/thumbnails"
 
 # Cache configuration
 RERO_INVENIO_THUMBNAILS_CACHE_EXPIRE = 3600
-
-# Retry config (defaults shown)
-RERO_INVENIO_THUMBNAILS_RETRY_ENABLED = True
-RERO_INVENIO_THUMBNAILS_RETRY_ATTEMPTS = 5
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MULTIPLIER = 0.5
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MIN = 1
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MAX = 10
-# Disable retries globally via env (e.g., for tests)
-# export RERO_THUMBNAILS_DISABLE_RETRIES=true
 ```
+
+> **DNB / MVB license requirement**: The `dnb` provider is **not** enabled by
+> default. Its cover images are sourced from VLB (Verzeichnis Lieferbarer
+> Bücher, operated by MVB GmbH) and are subject to copyright. To enable it,
+> add `"dnb"` to your instance-specific `RERO_INVENIO_THUMBNAILS_PROVIDERS`
+> list. A valid data licence agreement with MVB is required.
+> Contact: kundenservice@mvb-online.de
 
 Initialize the extension:
 

@@ -29,17 +29,6 @@ class DnbProvider(BaseProvider):
     Fetches cover images directly from the DNB/MVB cover service
     (``portal.dnb.de/opac/mvb/cover``) using the ISBN.
 
-    .. warning::
-
-        Cover images served by this endpoint are sourced from **VLB**
-        (Verzeichnis Lieferbarer Bücher, operated by MVB GmbH) and are
-        subject to copyright.  They are **not** freely reusable.  Use of
-        this provider requires a valid data licence agreement with MVB.
-        Contact: kundenservice@mvb-online.de
-
-        DNB bibliographic *metadata* is freely available under CC0, but
-        cover images are not part of that licence.
-
     Example::
 
         provider = DnbProvider()
@@ -57,7 +46,7 @@ class DnbProvider(BaseProvider):
         """
         self.base_url = "https://portal.dnb.de/opac/mvb/cover"
 
-    @handle_provider_errors("DNB")
+    @handle_provider_errors("dnb")
     def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from DNB/MVB.
 
@@ -73,11 +62,11 @@ class DnbProvider(BaseProvider):
             url, name = provider.get_thumbnail_url("9783161484100")
             # url == "https://portal.dnb.de/opac/mvb/cover?isbn=9783161484100"
         """
-        clean = clean_isbn(isbn)
-        if not clean:
+        clean_isbn_value = clean_isbn(isbn)
+        if not clean_isbn_value:
             return None, self.name
 
-        url = f"{self.base_url}?isbn={clean}"
-        if fetch_and_validate_thumbnail(url, "DNB", clean, timeout=10):
+        url = f"{self.base_url}?isbn={clean_isbn_value}"
+        if fetch_and_validate_thumbnail(url, "DNB", clean_isbn_value, timeout=(2, 10)):
             return url, self.name
         return None, self.name

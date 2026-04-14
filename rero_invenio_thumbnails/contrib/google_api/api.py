@@ -16,12 +16,12 @@
 """Thumbnails GoogleApi."""
 
 import requests
+from flask import current_app
 
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
     fetch_and_validate_thumbnail,
-    fetch_with_retries,
     handle_provider_errors,
 )
 
@@ -55,11 +55,11 @@ class GoogleApiProvider(BaseProvider):
         :returns: tuple - (url, provider_name) where url is the thumbnail URL from
             Google Books if found (None otherwise), and provider_name is \"google api\".
 
-        Examples:
-            >>> provider = GoogleApiProvider()  # doctest: +SKIP
-            >>> url, provider = provider.get_thumbnail_url("9780134685991")  # doctest: +SKIP
-            >>> print(url, provider)  # doctest: +SKIP
-            https://books.google.com/books/content?id=... google api
+        Example::
+
+            provider = GoogleApiProvider()
+            url, name = provider.get_thumbnail_url("9780134685991")
+            # url == "https://books.google.com/books/content?id=..."
 
         Note:
             - Requires internet connectivity to access Google Books API.
@@ -69,14 +69,19 @@ class GoogleApiProvider(BaseProvider):
         # Clean ISBN (remove hyphens and spaces)
         clean_isbn_value = clean_isbn(isbn)
         url = f"{self.base_url}?q=isbn:{clean_isbn_value}"
-        response = fetch_with_retries(url)
-        if response.status_code == requests.codes.ok:
-            data = response.json()
-            # Only accept exactly one result to avoid ambiguity
-            if data.get("totalItems") == 1 and data.get("items"):
-                item = data["items"][0]
-                if (
-                    thumbnail_url := item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail")
-                ) and fetch_and_validate_thumbnail(thumbnail_url, "Google API", clean_isbn_value):
-                    return thumbnail_url, self.name
+        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
+        response = requests.get(url, timeout=timeout)
+        if response.status_code != requests.codes.ok:
+            current_app.logger.debug(
+                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
+            )
+            return None, self.name
+        data = response.json()
+        # Only accept exactly one result to avoid ambiguity
+        if data.get("totalItems") == 1 and data.get("items"):
+            item = data["items"][0]
+            if (
+                thumbnail_url := item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail")
+            ) and fetch_and_validate_thumbnail(thumbnail_url, self.name, clean_isbn_value):
+                return thumbnail_url, self.name
         return None, self.name

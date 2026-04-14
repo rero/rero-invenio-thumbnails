@@ -20,6 +20,7 @@ service, registers blueprints, and configures default settings.
 """
 
 from . import config
+from .api import PROVIDERS, get_thumbnail_url
 from .views import api_thumbnails
 
 
@@ -44,8 +45,6 @@ class REROInvenioThumbnails:
                 app.config.setdefault(key, getattr(config, key))
 
         # Validate that all configured providers exist in the registry
-        from .api import PROVIDERS
-
         configured_providers = app.config.get("RERO_INVENIO_THUMBNAILS_PROVIDERS", [])
         for provider_name in configured_providers:
             if provider_name not in PROVIDERS:
@@ -60,6 +59,4 @@ class REROInvenioThumbnails:
 
     def get_thumbnail_url(self, isbn):
         """Get thumbnail URL for a given ISBN."""
-        from .api import get_thumbnail_url
-
         return get_thumbnail_url(isbn)

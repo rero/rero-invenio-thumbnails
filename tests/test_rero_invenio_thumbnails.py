@@ -26,7 +26,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from flask import Flask
 
-from rero_invenio_thumbnails import REROInvenioThumbnails
+from rero_invenio_thumbnails import REROInvenioThumbnails, __version__
 from rero_invenio_thumbnails.api import PROVIDERS, get_thumbnail_url
 from rero_invenio_thumbnails.contrib.files.api import FilesProvider
 
@@ -53,8 +53,6 @@ def client(app):
 
 def test_version():
     """Test version import."""
-    from rero_invenio_thumbnails import __version__
-
     assert __version__
 
 
@@ -69,7 +67,7 @@ def test_init():
 
 def test_get_thumbnail_url_with_files_provider(app):
     """Test get_thumbnail_url using Files provider."""
-    with app.app_context(), patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
+    with patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
         _safe_cache_delete("9780134685991")
         app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
 
@@ -89,7 +87,7 @@ def test_get_thumbnail_url_with_files_provider(app):
 
 def test_get_thumbnail_url_multiple_providers_first_success(app):
     """Test get_thumbnail_url with multiple providers - first succeeds."""
-    with app.app_context(), patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
+    with patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
         _safe_cache_delete("9780134685991")
         app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files", "open library"]
 
@@ -119,7 +117,7 @@ def test_get_thumbnail_url_multiple_providers_first_success(app):
 
 def test_get_thumbnail_url_provider_returns_none(app):
     """Test get_thumbnail_url when provider returns None."""
-    with app.app_context(), patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
+    with patch("rero_invenio_thumbnails.api.PROVIDERS") as mock_providers:
         _safe_cache_delete("9780134685991")
         app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
 
@@ -131,79 +129,74 @@ def test_get_thumbnail_url_provider_returns_none(app):
         url, provider_name = get_thumbnail_url("9780134685991")
 
         assert url is None
-        assert provider_name == "files"
+        assert provider_name is None
 
 
 def test_get_thumbnail_url_no_providers_configured(app):
     """Test get_thumbnail_url with no providers configured."""
-    with app.app_context():
-        _safe_cache_delete("9780134685991")
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
+    _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
 
-        assert get_thumbnail_url("9780134685991") == (None, None)
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_get_thumbnail_url_default_config(app):
     """Test get_thumbnail_url with default configuration."""
-    with app.app_context():
-        # Explicitly set empty providers to ensure deterministic behavior
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
-        _safe_cache_delete("9780134685991")
+    # Explicitly set empty providers to ensure deterministic behavior
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, None)
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_get_thumbnail_url_with_cached_none_result(app):
     """Test get_thumbnail_url when cached None result exists."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent"
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent"
 
-        result1 = get_thumbnail_url("9999999999999")
-        assert result1 == (None, "files")
+    result1 = get_thumbnail_url("9999999999999")
+    assert result1 == (None, None)
 
-        result2 = get_thumbnail_url("9999999999999")
-        assert result2 == (None, "files")
+    result2 = get_thumbnail_url("9999999999999")
+    assert result2 == (None, None)
 
 
 def test_get_thumbnail_url_with_cached_none_and_uncached_call(app):
     """Test get_thumbnail_url with cached=False when None is cached."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent"
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent"
 
-        result1 = get_thumbnail_url("8888888888888", cached=True)
-        assert result1 == (None, "files")
+    result1 = get_thumbnail_url("8888888888888", cached=True)
+    assert result1 == (None, None)
 
-        result2 = get_thumbnail_url("8888888888888", cached=False)
-        assert result2 == (None, "files")
+    result2 = get_thumbnail_url("8888888888888", cached=False)
+    assert result2 == (None, None)
 
 
 def test_get_thumbnail_url_with_pipe_in_url(app):
     """Test that URLs containing pipe characters are cached correctly."""
-    with app.app_context():
-        mock_provider = MagicMock()
-        test_url = "https://example.com/image.jpg?param=value%7Cother|literal"
-        mock_provider.get_thumbnail_url.return_value = (test_url, "test provider")
+    mock_provider = MagicMock()
+    test_url = "https://example.com/image.jpg?param=value%7Cother|literal"
+    mock_provider.get_thumbnail_url.return_value = (test_url, "test provider")
 
-        original_providers = PROVIDERS.copy()
-        PROVIDERS["test"] = lambda: mock_provider
-        try:
-            app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["test"]
-            _safe_cache_delete("1234567890123")
+    original_providers = PROVIDERS.copy()
+    PROVIDERS["test"] = lambda: mock_provider
+    try:
+        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["test"]
+        _safe_cache_delete("1234567890123")
 
-            url1, provider1 = get_thumbnail_url("1234567890123")
-            assert url1 == test_url
-            assert provider1 == "test provider"
+        url1, provider1 = get_thumbnail_url("1234567890123")
+        assert url1 == test_url
+        assert provider1 == "test provider"
 
-            url2, provider2 = get_thumbnail_url("1234567890123")
-            assert url2 == test_url
-            assert provider2 == "test provider"
+        url2, provider2 = get_thumbnail_url("1234567890123")
+        assert url2 == test_url
+        assert provider2 == "test provider"
 
-            assert mock_provider.get_thumbnail_url.call_count == 1
-        finally:
-            PROVIDERS.clear()
-            PROVIDERS.update(original_providers)
+        assert mock_provider.get_thumbnail_url.call_count == 1
+    finally:
+        PROVIDERS.clear()
+        PROVIDERS.update(original_providers)
 
 
 def test_endpoint_blueprint_registration(app):
@@ -217,7 +210,7 @@ def test_endpoint_blueprint_registration(app):
 
 def test_endpoint_get_thumbnail_url_success(app, client):
     """Test successful thumbnail URL retrieval via /thumbnails-url endpoint."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
         mock_get_url.return_value = ("https://example.com/thumbnail.jpg", "open library")
 
         response = client.get("/thumbnails-url/9780134685991")
@@ -230,7 +223,7 @@ def test_endpoint_get_thumbnail_url_success(app, client):
 
 def test_endpoint_get_thumbnail_url_not_found(app, client):
     """Test thumbnail URL not found via /thumbnails-url endpoint."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
         mock_get_url.return_value = (None, "open library")
 
         response = client.get("/thumbnails-url/9999999999999")
@@ -243,7 +236,7 @@ def test_endpoint_get_thumbnail_url_not_found(app, client):
 
 def test_endpoint_get_thumbnail_url_with_cached_parameter(app, client):
     """Test thumbnail URL endpoint with cached parameter."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
         mock_get_url.return_value = ("https://example.com/thumbnail.jpg", "files")
 
         response = client.get("/thumbnails-url/9780134685991?cached=false")
@@ -254,7 +247,7 @@ def test_endpoint_get_thumbnail_url_with_cached_parameter(app, client):
 
 def test_endpoint_get_thumbnail_url_exception_handling(app, client):
     """Test thumbnail URL endpoint exception handling."""
-    with app.app_context(), patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
         mock_get_url.side_effect = Exception("Unexpected error")
 
         response = client.get("/thumbnails-url/9780134685991")
@@ -262,7 +255,7 @@ def test_endpoint_get_thumbnail_url_exception_handling(app, client):
         assert response.status_code == 500
         data = response.get_json()
         assert data["error"] == "Server error"
-        assert "9780134685991" in data["isbn"]
+        assert data["isbn"] == "9780134685991"
 
 
 def test_extension_initialization_with_blueprint(app):
@@ -273,10 +266,6 @@ def test_extension_initialization_with_blueprint(app):
 
 def test_extension_validates_provider_configuration(caplog):
     """Test that extension logs error for non-existent providers in configuration."""
-    from flask import Flask
-
-    from rero_invenio_thumbnails.ext import REROInvenioThumbnails
-
     app = Flask(__name__)
     app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = [
         "files",  # Valid provider
@@ -304,168 +293,156 @@ def test_extension_validates_provider_configuration(caplog):
 
 def test_end_to_end_thumbnail_serving(app):
     """Test end-to-end thumbnail URL retrieval through blueprint."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
-        client = app.test_client()
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
+    client = app.test_client()
 
-        with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
-            mock_get_url.return_value = ("https://example.com/thumbnail.jpg", "open library")
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get_url:
+        mock_get_url.return_value = ("https://example.com/thumbnail.jpg", "open library")
 
-            response = client.get("/thumbnails-url/9780134685991")
+        response = client.get("/thumbnails-url/9780134685991")
 
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data["url"] == "https://example.com/thumbnail.jpg"
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["url"] == "https://example.com/thumbnail.jpg"
 
 
 def test_files_provider_fallback_localhost(app):
     """Test FilesProvider fallback to localhost when SERVER_NAME not set."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
-            test_isbn = "9780134685991"
-            test_file = os.path.join(temp_dir, f"{test_isbn}.jpg")
-            with open(test_file, "wb") as f:
-                f.write(b"test")
+    with tempfile.TemporaryDirectory() as temp_dir:
+        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
+        test_isbn = "9780134685991"
+        test_file = os.path.join(temp_dir, f"{test_isbn}.jpg")
+        with open(test_file, "wb") as f:
+            f.write(b"test")
 
-            url, provider_name = get_thumbnail_url(test_isbn)
-            assert url == "http://localhost/thumbnails/9780134685991"
-            assert provider_name == "files"
+        url, provider_name = get_thumbnail_url(test_isbn)
+        assert url == "http://localhost/thumbnails/9780134685991"
+        assert provider_name == "files"
 
 
 def test_open_library_non_image_content_type(app, requests_mock):
     """Test OpenLibraryProvider rejects non-image content types."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
-        requests_mock.get(re.compile(r".*"), status_code=200, headers={"Content-Type": "text/html"}, text="")
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
+    requests_mock.get(re.compile(r".*"), status_code=200, headers={"Content-Type": "text/html"}, text="")
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, "open library")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_open_library_request_exception(app, requests_mock):
     """Test OpenLibraryProvider handles request exceptions."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
-        requests_mock.get(re.compile(r".*"), exc=Exception("Connection error"))
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
+    requests_mock.get(re.compile(r".*"), exc=Exception("Connection error"))
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, "open library")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_files_provider_missing_thumbnail(app):
     """Test FilesProvider when thumbnail file doesn't exist."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
+    with tempfile.TemporaryDirectory() as temp_dir:
+        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
 
-            assert get_thumbnail_url("9999999999999") == (None, "files")
+        assert get_thumbnail_url("9999999999999") == (None, None)
 
 
 def test_endpoint_server_error_on_file_access(app, client):
     """Test endpoint error handling when FilesProvider throws exception."""
-    with app.app_context():
-        _safe_cache_delete("9780134685991")
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/invalid/nonexistent/path"
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
+    _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/invalid/nonexistent/path"
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["files"]
 
-        response = client.get("/thumbnails-url/9780134685991")
+    response = client.get("/thumbnails-url/9780134685991")
 
-        assert response.status_code == 404
-        data = response.get_json()
-        assert data["error"] == "Thumbnail not found"
+    assert response.status_code == 404
+    data = response.get_json()
+    assert data["error"] == "Thumbnail not found"
 
 
 def test_google_api_provider_http_error(app, requests_mock):
     """Test GoogleApiProvider handles HTTP errors."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google api"]
-        requests_mock.get(re.compile(r".*"), exc=Exception("HTTP Error"))
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google api"]
+    requests_mock.get(re.compile(r".*"), exc=Exception("HTTP Error"))
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, "google api")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_google_books_provider_empty_response(app, requests_mock):
     """Test GoogleBooksProvider handles empty JSON response."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google books"]
-        requests_mock.get(re.compile(r".*"), status_code=200, text="")
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google books"]
+    requests_mock.get(re.compile(r".*"), status_code=200, text="")
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, "google books")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_files_provider_exception(app):
     """Test FilesProvider handles exceptions in get_thumbnail_url."""
-    with app.app_context():
-        provider = FilesProvider()
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/invalid/path"
+    provider = FilesProvider()
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/invalid/path"
 
-        url, provider_name = provider.get_thumbnail_url("9780134685991")
-        assert url is None
-        assert provider_name == "files"
+    url, provider_name = provider.get_thumbnail_url("9780134685991")
+    assert url is None
+    assert provider_name == "files"
 
 
 def test_cache_integration_with_none_result(app):
     """Test that None results are cached to avoid repeated queries."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = []
+    _safe_cache_delete("9780134685991")
 
-        url1 = get_thumbnail_url("9780134685991")
-        assert url1 == (None, None)
+    url1 = get_thumbnail_url("9780134685991")
+    assert url1 == (None, None)
 
-        if current_cache is not None:
-            cache_key = "rero_thumbnails_9780134685991"
-            cached_value = current_cache.get(cache_key)
-            data = json.loads(cached_value)
-            assert data == {"url": None, "provider": None}
+    if current_cache is not None:
+        cache_key = "rero_thumbnails_9780134685991"
+        cached_value = current_cache.get(cache_key)
+        assert cached_value is not None, "Expected value to be cached"
+        data = json.loads(cached_value)
+        assert data == {"url": None, "provider": None}
 
 
 def test_google_books_provider_malformed_jsonp(app, requests_mock):
     """Test GoogleBooksProvider handles malformed JSONP response."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google books"]
-        _safe_cache_delete("9780134685991")
-        requests_mock.get(re.compile(r".*"), status_code=200, text="notjsoncallback({invalid json})")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["google books"]
+    _safe_cache_delete("9780134685991")
+    requests_mock.get(re.compile(r".*"), status_code=200, text="notjsoncallback({invalid json})")
 
-        assert get_thumbnail_url("9780134685991") == (None, "google books")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_open_library_provider_404_status(app, requests_mock):
     """Test Open Library provider returns None for 404 status."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
-        # Mock OpenLibrary HTTP request to return 404
-        requests_mock.get(re.compile(r".*openlibrary\.org.*"), status_code=404)
-        _safe_cache_delete("9780134685991")
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
+    # Mock OpenLibrary HTTP request to return 404
+    requests_mock.get(re.compile(r".*openlibrary\.org.*"), status_code=404)
+    _safe_cache_delete("9780134685991")
 
-        assert get_thumbnail_url("9780134685991") == (None, "open library")
+    assert get_thumbnail_url("9780134685991") == (None, None)
 
 
 def test_http_cache_headers_on_url_response(app, client):
     """Test that URL responses include cache control headers."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 86400
-        app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
+    app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 86400
+    app.config["RERO_INVENIO_THUMBNAILS_PROVIDERS"] = ["open library"]
 
-        with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get:
-            mock_get.return_value = ("https://example.com/image.jpg", "open library")
+    with patch("rero_invenio_thumbnails.views.get_thumbnail_url") as mock_get:
+        mock_get.return_value = ("https://example.com/image.jpg", "open library")
 
-            response = client.get("/thumbnails-url/9780134685991")
-            assert response.status_code == 200
-            assert "Cache-Control" in response.headers
-            assert "max-age=86400" in response.headers["Cache-Control"]
+        response = client.get("/thumbnails-url/9780134685991")
+        assert response.status_code == 200
+        assert "Cache-Control" in response.headers
+        assert "max-age=86400" in response.headers["Cache-Control"]
 
 
 def test_serve_thumbnail_success(app, client):
     """Test serving a thumbnail image file successfully."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.jpg")
@@ -480,7 +457,7 @@ def test_serve_thumbnail_success(app, client):
 
 def test_serve_thumbnail_png_format(app, client):
     """Test serving a PNG thumbnail."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685992"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.png")
@@ -494,7 +471,7 @@ def test_serve_thumbnail_png_format(app, client):
 
 def test_serve_thumbnail_not_found(app, client):
     """Test 404 response when thumbnail file doesn't exist."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9999999999999"
 
@@ -507,19 +484,18 @@ def test_serve_thumbnail_not_found(app, client):
 
 def test_serve_thumbnail_no_directory(app, client):
     """Test 404 response when files directory doesn't exist."""
-    with app.app_context():
-        app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent/directory"
-        test_isbn = "9780134685991"
+    app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = "/nonexistent/directory"
+    test_isbn = "9780134685991"
 
-        response = client.get(f"/thumbnails/{test_isbn}")
-        assert response.status_code == 404
-        data = response.get_json()
-        assert data["error"] == "Thumbnail not found"
+    response = client.get(f"/thumbnails/{test_isbn}")
+    assert response.status_code == 404
+    data = response.get_json()
+    assert data["error"] == "Thumbnail not found"
 
 
 def test_serve_thumbnail_cache_headers(app, client):
     """Test cache headers on image responses."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_HTTP_CACHE_MAX_AGE"] = 3600
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
@@ -535,7 +511,7 @@ def test_serve_thumbnail_cache_headers(app, client):
 
 def test_serve_thumbnail_etag_support(app, client):
     """Test ETag generation and validation for client-side caching."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.jpg")
@@ -555,7 +531,7 @@ def test_serve_thumbnail_etag_support(app, client):
 
 def test_serve_thumbnail_if_modified_since(app, client):
     """Test If-Modified-Since header for conditional requests."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.jpg")
@@ -572,7 +548,7 @@ def test_serve_thumbnail_if_modified_since(app, client):
 
 def test_serve_thumbnail_etag_different_after_modification(app, client):
     """Test that ETag changes when file is modified."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.jpg")
@@ -597,7 +573,7 @@ def test_serve_thumbnail_etag_different_after_modification(app, client):
 
 def test_serve_thumbnail_invalid_if_modified_since(app, client):
     """Test handling of invalid If-Modified-Since header."""
-    with app.app_context(), tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory() as temp_dir:
         app.config["RERO_INVENIO_THUMBNAILS_FILES_DIR"] = temp_dir
         test_isbn = "9780134685991"
         test_image_path = os.path.join(temp_dir, f"{test_isbn}.jpg")

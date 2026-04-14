@@ -22,9 +22,8 @@ Key features:
     - Multi-provider support with fallback chain
     - Plugin-based architecture via entry points
     - Redis caching via invenio_cache
-    - Image validation (minimum 10x10 pixels)
+    - Image validation (minimum 50x50 pixels by default)
     - Dynamic image resizing
-    - Configurable retry logic for HTTP requests
 
 Provider Discovery:
     Providers are automatically discovered via the
@@ -38,7 +37,6 @@ Provider Discovery:
 """
 
 import json
-from contextlib import suppress
 from importlib.metadata import entry_points
 
 from flask import current_app
@@ -143,11 +141,13 @@ def get_thumbnail_url(isbn, cached=True):
         # Try to get from cache
         if (cached_result := cache.get(cache_key)) is not None:
             # Cached result is JSON: {"url": "...", "provider": "..."}
-            with suppress(json.JSONDecodeError, AttributeError, TypeError):
+            try:
                 data = json.loads(cached_result)
                 url = data.get("url")
                 provider = data.get("provider")
                 return url, provider
+            except (json.JSONDecodeError, AttributeError, TypeError) as e:
+                current_app.logger.debug(f"Malformed cache entry for ISBN {isbn}, re-fetching: {e}")
 
     # Get cache timeout
     timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_CACHE_EXPIRE", DEFAULT_CACHE_EXPIRE)
@@ -173,9 +173,7 @@ def get_thumbnail_url(isbn, cached=True):
             return url, returned_provider
 
     # Cache None result to avoid repeated failed lookups
-    # Use last provider name or None
-    last_provider = providers[-1] if providers else None
     if cached:
-        cache_data = json.dumps({"url": None, "provider": last_provider})
+        cache_data = json.dumps({"url": None, "provider": None})
         cache.set(cache_key, cache_data, timeout=timeout)
-    return None, last_provider
+    return None, None

@@ -31,29 +31,25 @@ in your Flask/Invenio configuration:
 ```python
 RERO_INVENIO_THUMBNAILS_PROVIDERS = [
     "files",
-    "open library",
-    "bnf",
-    "dnb",
     "google books",
     "google api",
+    "amazon",
+    "bnf",
+    "internet archive",
+    "open library",
 ]
 
 # Directory used by FilesProvider
 RERO_INVENIO_THUMBNAILS_FILES_DIR = "/path/to/thumbnails"
 RERO_INVENIO_THUMBNAILS_CACHE_EXPIRE = 3600
-# Retry configuration (defaults shown)
-RERO_INVENIO_THUMBNAILS_RETRY_ENABLED = True
-RERO_INVENIO_THUMBNAILS_RETRY_ATTEMPTS = 5
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MULTIPLIER = 0.5
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MIN = 1
-RERO_INVENIO_THUMBNAILS_RETRY_BACKOFF_MAX = 10
 ```
 
-You can also disable retries globally (useful in tests) via environment variable:
-
-```bash
-export RERO_THUMBNAILS_DISABLE_RETRIES=true
-```
+> **DNB / MVB licence requirement**: The `dnb` provider is **not** enabled by
+> default. Its cover images are sourced from VLB (Verzeichnis Lieferbarer
+> Bücher, operated by MVB GmbH) and are subject to copyright. To enable it,
+> add `"dnb"` to your instance-specific `RERO_INVENIO_THUMBNAILS_PROVIDERS`
+> list. A valid data licence agreement with MVB is required.
+> Contact: kundenservice@mvb-online.de
 
 ## Application integration
 
