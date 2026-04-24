@@ -1,5 +1,13 @@
 # Changelog
 
+## [v2.0.0](https://github.com/rero/rero-invenio-thumbnails/tree/v2.0.0) (2026-04-24)
+
+[Full Changelog](https://github.com/rero/rero-invenio-thumbnails/compare/v1.1.0...v2.0.0)
+
+**Breaking changes:**
+
+- chore!: bump Python support to 3.12–3.14 [#4](https://github.com/rero/rero-invenio-thumbnails/pull/4) (by @PascalRepond)
+
 ## [v1.1.0](https://github.com/rero/rero-invenio-thumbnails/tree/v1.1.0) (2026-04-16)
 
 [Full Changelog](https://github.com/rero/rero-invenio-thumbnails/compare/v1.0.0...v1.1.0)
