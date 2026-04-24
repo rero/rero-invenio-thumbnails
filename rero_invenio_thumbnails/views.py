@@ -18,7 +18,7 @@
 import hashlib
 import os
 from contextlib import suppress
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import Blueprint, current_app, jsonify, make_response, request, send_file
 
@@ -163,7 +163,7 @@ def serve_thumbnail(isbn):
         etag = f'"{hashlib.md5(etag_data).hexdigest()}"'
 
         # Convert modification time to HTTP date format (UTC)
-        last_modified = datetime.fromtimestamp(file_mtime, tz=timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        last_modified = datetime.fromtimestamp(file_mtime, tz=UTC).strftime("%a, %d %b %Y %H:%M:%S GMT")
 
         # Check If-None-Match header (ETag-based conditional request)
         if (if_none_match := request.headers.get("If-None-Match")) and if_none_match == etag:
@@ -175,10 +175,8 @@ def serve_thumbnail(isbn):
 
         if if_modified_since := request.headers.get("If-Modified-Since"):
             with suppress(ValueError):
-                client_date = datetime.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT").replace(
-                    tzinfo=timezone.utc
-                )
-                server_date = datetime.fromtimestamp(file_mtime, tz=timezone.utc)
+                client_date = datetime.strptime(if_modified_since, "%a, %d %b %Y %H:%M:%S GMT").replace(tzinfo=UTC)
+                server_date = datetime.fromtimestamp(file_mtime, tz=UTC)
                 # Truncate to seconds for comparison (HTTP dates don't include microseconds)
                 server_date = server_date.replace(microsecond=0)
                 if server_date <= client_date:
