@@ -66,6 +66,8 @@ add_exceptions() {
 add_exceptions CVE-2025-71176
 
 info_msg "Check vulnerabilities:"
+# pytest 8.4.2   CVE-2025-71176 9.0.3
+add_exceptions "CVE-2025-71176"
 pip-audit ${pip_audit_exceptions}
 
 info_msg "Test formatting:"

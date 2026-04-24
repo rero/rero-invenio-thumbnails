@@ -24,16 +24,17 @@ readme = "README.md"
 authors = [{name = "RERO+", email = "software@rero.ch"}]
 license = "AGPL-3.0-or-later"
 license-files = ["LICENSE"]
-requires-python = ">=3.10, <3.13"
+requires-python = ">=3.12, <3.15"
 
 dependencies = [
     "flask",
     "invenio-app>=2.3.0",
     "invenio-base>=2.4.0",
-    "invenio-cache (>=2.0.0,<3.0.0)",
+    "invenio-cache>=2.0.0",
     "isbnlib>=3.10.14",
     "pillow>=11.3.0",
-    "requests (>=2.23.0)",
+    "requests>=2.23.0",
+    "tenacity>=8.0.0",
 ]
 
 [dependency-groups]
@@ -83,6 +84,7 @@ addopts = "--color=yes --exclude-warning-annotations --doctest-modules --cov=rer
 testpaths = "tests rero_invenio_thumbnails"
 # not displaying all the PendingDeprecationWarnings from invenio
 filterwarnings = "ignore::PendingDeprecationWarning"
+
 markers = [
     "external: mark test as requiring real external network access (run with --external)",
 ]
@@ -110,7 +112,7 @@ line-length = 120
 extend-select = ["A", "C4", "DTZ", "INT", "ISC", "T20", "PIE", "Q", "RET", "SIM", "I", "N", "PERF", "W", "D", "F", "UP", "RUF"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*.py" = ["F821"]  # Allow undefined names in tests (create_test_image is injected via conftest.py)
+"tests/*.py" = ["F821"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
