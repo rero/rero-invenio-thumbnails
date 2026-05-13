@@ -25,7 +25,12 @@ from PIL import Image
 
 from rero_invenio_thumbnails.api import get_thumbnail_url
 from rero_invenio_thumbnails.contrib.files.api import FilesProvider
-from rero_invenio_thumbnails.contrib.utils import clean_all_cache, handle_provider_errors, validate_image_content
+from rero_invenio_thumbnails.contrib.utils import (
+    clean_all_cache,
+    fetch_and_validate_thumbnail,
+    handle_provider_errors,
+    validate_image_content,
+)
 
 
 def test_validate_image_content_empty_content(app):
@@ -151,3 +156,73 @@ def test_clean_all_cache_large_batch(app):
 
     assert result == 1001
     assert mock_client.delete.call_count == 2
+
+
+# --- fetch_and_validate_thumbnail ---
+
+
+def test_fetch_and_validate_thumbnail_success(app, requests_mock):
+    """Test that a 200 response with a valid image returns True."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=200, content=create_test_image())
+
+    assert fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000") is True
+
+
+def test_fetch_and_validate_thumbnail_non_200_no_expected_codes(app, requests_mock):
+    """Test that a non-200 status is logged and returns False when expected_status_codes is not set."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=404)
+
+    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
+        result = fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000")
+
+    assert result is False
+    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
+    assert any("HTTP 404" in msg for msg in logged_messages)
+
+
+def test_fetch_and_validate_thumbnail_expected_status_silenced(app, requests_mock):
+    """Test that a status code in expected_status_codes is NOT logged as an HTTP error."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=500)
+
+    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
+        result = fetch_and_validate_thumbnail(url, "BNF", "9780000000000", expected_status_codes={500})
+
+    assert result is False
+    # 500 is declared as expected — no debug HTTP-error log should be emitted
+    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
+    assert all("HTTP 500" not in msg for msg in logged_messages)
+
+
+def test_fetch_and_validate_thumbnail_unexpected_status_logged(app, requests_mock):
+    """Test that a status code NOT in expected_status_codes is still logged."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=503)
+
+    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
+        result = fetch_and_validate_thumbnail(url, "BNF", "9780000000000", expected_status_codes={500})
+
+    assert result is False
+    # 503 is NOT in expected_status_codes → debug log should fire
+    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
+    assert any("HTTP 503" in msg for msg in logged_messages)
+
+
+def test_fetch_and_validate_thumbnail_request_exception(app, requests_mock):
+    """Test that a connection error returns False without raising."""
+    import requests as req
+
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, exc=req.exceptions.ConnectionError("timeout"))
+
+    assert fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000") is False
+
+
+def test_fetch_and_validate_thumbnail_invalid_image(app, requests_mock):
+    """Test that a 200 response with non-image content returns False."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=200, content=b"<html>not an image</html>")
+
+    assert fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000") is False
