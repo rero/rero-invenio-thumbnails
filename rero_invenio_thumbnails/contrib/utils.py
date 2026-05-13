@@ -117,7 +117,7 @@ def validate_image_content(content, provider_name="", isbn=""):
         return False
 
 
-def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers=None):
+def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers=None, expected_status_codes=None):
     """Fetch a thumbnail URL and validate it contains a real image.
 
     This helper function combines the common pattern of fetching a thumbnail URL,
@@ -130,14 +130,19 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers
     :param timeout: Request timeout as ``(connect, read)`` in seconds. Defaults to
         ``RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT`` from config (``(2, 10)`` if unset).
     :param headers: Optional HTTP headers to include in the request. Defaults to None.
+    :param expected_status_codes: Set of HTTP status codes that are normal non-200
+        responses for this provider (e.g. ``{500}`` for BNF which returns 500 when no
+        cover is found). These are logged at debug level with a "no cover available"
+        note rather than as an unexpected HTTP error. Defaults to None.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
     Example::
 
         if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "Provider", "9780134685991"):
             return url, "provider"
-        # With custom timeout
-        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "BNF", "978...", timeout=(3, 10)):
+        # BNF returns 500 when no cover is available — treat it as expected
+        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "BNF", "978...",
+                                        timeout=(3, 10), expected_status_codes={500}):
             return url, "bnf"
 
     Note:
@@ -152,9 +157,10 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers
         return False
 
     if response.status_code != requests.codes.ok:
-        current_app.logger.debug(
-            f"HTTP {response.status_code} fetching thumbnail from {provider_name} for ISBN {isbn}: {url}"
-        )
+        if expected_status_codes is None or response.status_code not in expected_status_codes:
+            current_app.logger.debug(
+                f"HTTP {response.status_code} fetching thumbnail from {provider_name} for ISBN {isbn}: {url}"
+            )
         return False
     return validate_image_content(response.content, provider_name, isbn)
 

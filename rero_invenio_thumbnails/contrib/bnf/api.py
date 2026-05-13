@@ -70,6 +70,8 @@ class BnfProvider(BaseProvider):
         clean_isbn_value = clean_isbn(isbn)
         url = f"{self.base_url}?ISBN={clean_isbn_value}&couverture={self.cover_page}"
 
-        if fetch_and_validate_thumbnail(url, "BNF", clean_isbn_value, timeout=(2, 10), headers=self.headers):
+        if fetch_and_validate_thumbnail(
+            url, "BNF", clean_isbn_value, timeout=(2, 10), headers=self.headers, expected_status_codes={500}
+        ):
             return url, self.name
         return None, self.name
