@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: Fondation RERO+
+# SPDX-License-Identifier: AGPL-3.0-or-later
 
 # Usage:
 #   env DB=postgresql12 SEARCH=opensearch2 CACHE=redis MQ=rabbitmq ./run-tests.sh
@@ -61,9 +63,6 @@ pip_audit_exceptions=""
 add_exceptions() {
     pip_audit_exceptions="$pip_audit_exceptions --ignore-vuln $1"""
 }
-
-# pytest 8.4.2   CVE-2025-71176 9.0.3
-add_exceptions CVE-2025-71176
 
 info_msg "Check vulnerabilities:"
 # pytest 8.4.2   CVE-2025-71176 9.0.3

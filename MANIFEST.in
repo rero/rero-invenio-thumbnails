@@ -1,8 +1,0 @@
-include .dockerignore
-include .editorconfig
-include *.in
-include *.lock
-include *.md
-recursive-include .github/workflows *.yml
-recursive-include scripts *.sh
-recursive-include tests *.py
