@@ -83,6 +83,19 @@ format = {cmd = "ruff format .", help = "Formats all files"}
 lint = {cmd = "ruff check", help = "Checks linting"}
 run_tests = {cmd = "./scripts/tests.sh", help = "Runs all tests"}
 
+# Release management
+[tool.poe.tasks.changelog]
+cmd = "semantic-release changelog"
+help = "Preview the next changelog without making changes"
+
+[tool.poe.tasks.version]
+cmd = "semantic-release version --print"
+help = "Print the next version number without making changes"
+
+[tool.poe.tasks.release]
+cmd = "semantic-release version --no-push --no-tag --no-commit"
+help = "Generate changelog and bump version locally (does not push, tag, or commit - for local testing only)"
+
 [tool.semantic_release]
 version_toml = ["pyproject.toml:project.version"]
 tag_format = "v{version}"
