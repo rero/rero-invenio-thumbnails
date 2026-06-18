@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: Fondation RERO+
+SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+
 # Installation
 
 This package provides a lightweight Invenio extension to retrieve and serve
