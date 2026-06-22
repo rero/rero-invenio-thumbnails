@@ -38,6 +38,23 @@ def test_google_api_get_thumbnail_url_success(app, requests_mock):
     assert "books.google.com" in url
 
 
+def test_google_api_removes_edge_curl(app, requests_mock):
+    """Test that edge=curl is stripped from the returned thumbnail URL."""
+    raw_url = "http://books.google.com/books/content?id=xxxxx&edge=curl&source=gbs_api"
+    clean_url = "http://books.google.com/books/content?id=xxxxx&source=gbs_api"
+    response_data = {
+        "totalItems": 1,
+        "items": [{"volumeInfo": {"imageLinks": {"thumbnail": raw_url}}}],
+    }
+    requests_mock.get("https://www.googleapis.com/books/v1/volumes", json=response_data, status_code=200)
+    requests_mock.get(clean_url, content=create_test_image(), status_code=200)
+
+    url, _provider_name = GoogleApiProvider().get_thumbnail_url("9780134685991")
+
+    assert url == clean_url
+    assert "edge" not in url
+
+
 def test_google_api_get_thumbnail_url_not_found(app, requests_mock):
     """Test thumbnail URL retrieval when book not found."""
     requests_mock.get(re.compile(r".*"), json={"totalItems": 0, "items": []}, status_code=200)
