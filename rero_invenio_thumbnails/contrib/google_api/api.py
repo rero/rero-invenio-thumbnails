@@ -3,6 +3,8 @@
 
 """Thumbnails GoogleApi."""
 
+from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
+
 import requests
 from flask import current_app
 
@@ -68,8 +70,15 @@ class GoogleApiProvider(BaseProvider):
         # Only accept exactly one result to avoid ambiguity
         if data.get("totalItems") == 1 and data.get("items"):
             item = data["items"][0]
-            if (
-                thumbnail_url := item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail")
-            ) and fetch_and_validate_thumbnail(thumbnail_url, self.name, clean_isbn_value):
-                return thumbnail_url, self.name
+            if thumbnail_url := item.get("volumeInfo", {}).get("imageLinks", {}).get("thumbnail"):
+                thumbnail_url = _remove_edge_curl(thumbnail_url)
+                if fetch_and_validate_thumbnail(thumbnail_url, self.name, clean_isbn_value):
+                    return thumbnail_url, self.name
         return None, self.name
+
+
+def _remove_edge_curl(url):
+    """Remove the edge=curl parameter from a Google Books thumbnail URL."""
+    parsed = urlparse(url)
+    params = {k: v for k, v in parse_qs(parsed.query, keep_blank_values=True).items() if k != "edge"}
+    return urlunparse(parsed._replace(query=urlencode(params, doseq=True)))
