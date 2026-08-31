@@ -85,8 +85,8 @@ def get_thumbnail_url_endpoint(isbn):
         response = jsonify({"url": url, "isbn": isbn, "provider": provider})
         return add_cache_headers(response), 200
 
-    except Exception as err:
-        current_app.logger.error(f"Error retrieving thumbnail URL for ISBN {isbn}: {err!s}")
+    except Exception:
+        current_app.logger.exception(f"Error retrieving thumbnail URL for ISBN {isbn}")
         return jsonify(
             {"error": "Server error", "isbn": isbn, "message": "An error occurred while retrieving the thumbnail URL"}
         ), 500
@@ -185,8 +185,8 @@ def serve_thumbnail(isbn):
         response.headers["Last-Modified"] = last_modified
         return add_cache_headers(response), 200
 
-    except Exception as err:
-        current_app.logger.error(f"Error serving thumbnail for ISBN {isbn}: {err!s}")
+    except Exception:
+        current_app.logger.exception(f"Error serving thumbnail for ISBN {isbn}")
         return jsonify(
             {"error": "Server error", "isbn": isbn, "message": "An error occurred while serving the thumbnail"}
         ), 500

@@ -150,8 +150,8 @@ def get_thumbnail_url(isbn, cached=True):
         except KeyError:
             current_app.logger.warning(f"Provider '{provider_name}' not found in registry")
             continue
-        except Exception as exc:
-            current_app.logger.error(f"Error with provider '{provider_name}': {exc}", exc_info=True)
+        except Exception:
+            current_app.logger.exception(f"Error with provider '{provider_name}'")
             continue
         if url:
             # Cache successful result

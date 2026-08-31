@@ -20,7 +20,7 @@ from rero_invenio_thumbnails.contrib.files.api import FilesProvider
 
 try:
     from invenio_cache import current_cache
-except Exception:
+except ImportError:
     current_cache = None
 
 

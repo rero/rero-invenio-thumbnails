@@ -30,6 +30,7 @@ that inherits from `BaseProvider`:
 ```python
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 
+
 class MyCustomProvider(BaseProvider):
     def get_thumbnail_url(self, isbn):
         # Your implementation here
