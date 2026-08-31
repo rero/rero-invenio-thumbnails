@@ -48,7 +48,6 @@ dev = [
     "appnope; sys_platform == 'darwin'",
     "ruff>=0.12.3",
     "requests-mock>=1.12.0",
-    "python-semantic-release>=10.5.3",
 ]
 
 # ---------------------------------------------------------------------------
@@ -83,17 +82,18 @@ format = {cmd = "ruff format .", help = "Formats all files"}
 lint = {cmd = "ruff check", help = "Checks linting"}
 run_tests = {cmd = "./scripts/tests.sh", help = "Runs all tests"}
 
-# Release management
+# Release management. python-semantic-release runs in an isolated uvx environment:
+# its dependency tree (which caps click) has no reason to constrain ours.
 [tool.poe.tasks.changelog]
-cmd = "semantic-release changelog"
+cmd = "uvx --from python-semantic-release@latest semantic-release changelog"
 help = "Preview the next changelog without making changes"
 
 [tool.poe.tasks.version]
-cmd = "semantic-release version --print"
+cmd = "uvx --from python-semantic-release@latest semantic-release version --print"
 help = "Print the next version number without making changes"
 
 [tool.poe.tasks.release]
-cmd = "semantic-release version --no-push --no-tag --no-commit"
+cmd = "uvx --from python-semantic-release@latest semantic-release version --no-push --no-tag --no-commit"
 help = "Generate changelog and bump version locally (does not push, tag, or commit - for local testing only)"
 
 [tool.semantic_release]
