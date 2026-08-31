@@ -154,7 +154,7 @@ def test_files_get_thumbnail_url_exception_handling(app, monkeypatch):
 
     # Monkeypatch get_thumbnail_path to raise an exception
     def mock_get_thumbnail_path(self, isbn):
-        raise Exception("Simulated error in get_thumbnail_path")
+        raise RuntimeError("Simulated error in get_thumbnail_path")
 
     monkeypatch.setattr(FilesProvider, "get_thumbnail_path", mock_get_thumbnail_path)
 

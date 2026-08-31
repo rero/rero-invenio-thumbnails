@@ -70,9 +70,9 @@ class FilesProvider(BaseProvider):
         except OSError as exc:
             # Handle file system errors (permissions, invalid paths, etc.)
             current_app.logger.warning(f"File system error accessing thumbnails for ISBN {isbn}: {exc}")
-        except Exception as exc:
+        except Exception:
             # Catch any other unexpected errors
-            current_app.logger.error(f"Unexpected error in get_thumbnail_path for ISBN {isbn}: {exc}", exc_info=True)
+            current_app.logger.exception(f"Unexpected error in get_thumbnail_path for ISBN {isbn}")
 
         return None
 

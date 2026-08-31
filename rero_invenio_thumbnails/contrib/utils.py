@@ -46,14 +46,11 @@ def handle_provider_errors(provider_name):
                 return func(self, isbn)
             except ValueError as err:
                 current_app.logger.warning(f"Invalid ISBN format for {provider_name} provider: {isbn}: {err!s}")
-            except requests.RequestException as err:
-                current_app.logger.error(
-                    f"Request error retrieving thumbnail for ISBN {isbn} from {provider_name}: {err!s}", exc_info=True
-                )
-            except Exception as err:
-                current_app.logger.error(
-                    f"Unexpected error retrieving thumbnail for ISBN {isbn} from {provider_name}: {err!s}",
-                    exc_info=True,
+            except requests.RequestException:
+                current_app.logger.exception(f"Request error retrieving thumbnail for ISBN {isbn} from {provider_name}")
+            except Exception:
+                current_app.logger.exception(
+                    f"Unexpected error retrieving thumbnail for ISBN {isbn} from {provider_name}"
                 )
             # Return tuple format (None, provider_name) to maintain consistency
             return None, provider_name.lower()
