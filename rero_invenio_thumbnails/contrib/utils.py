@@ -44,10 +44,10 @@ def handle_provider_errors(provider_name):
         def wrapper(self, isbn):
             try:
                 return func(self, isbn)
-            except ValueError as err:
-                current_app.logger.warning(f"Invalid ISBN format for {provider_name} provider: {isbn}: {err!s}")
             except requests.RequestException:
                 current_app.logger.exception(f"Request error retrieving thumbnail for ISBN {isbn} from {provider_name}")
+            except ValueError as err:
+                current_app.logger.warning(f"Invalid ISBN format for {provider_name} provider: {isbn}: {err!s}")
             except Exception:
                 current_app.logger.exception(
                     f"Unexpected error retrieving thumbnail for ISBN {isbn} from {provider_name}"
@@ -75,8 +75,8 @@ def validate_image_content(content, provider_name="", isbn=""):
 
     Example::
 
-        content = requests.get("https://example.com/cover.jpg").content
-        if validate_image_content(content, "BNF", "9780134685991"):
+        response = fetch_url("https://example.com/cover.jpg", "bnf", "9780134685991")
+        if response and validate_image_content(response.content, "bnf", "9780134685991"):
             print("Valid image")
     """
     # current_app.config raises RuntimeError when called outside a Flask
@@ -102,7 +102,67 @@ def validate_image_content(content, provider_name="", isbn=""):
         return False
 
 
-def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers=None, expected_status_codes=None):
+def _log_http_status(url, provider_name, isbn, status_code, expected_status_codes):
+    """Log a non-200 HTTP status at the level its meaning deserves.
+
+    A status meaning "no cover for this ISBN" is logged at debug level. Any other
+    status signals a problem with the provider itself (blocked, rate limited,
+    misconfigured) and is reported at error level.
+
+    :param url: The URL that was fetched.
+    :param provider_name: Name of the provider.
+    :param isbn: ISBN being processed.
+    :param status_code: The HTTP status code returned.
+    :param expected_status_codes: Provider-specific "no cover" status codes, or None.
+    :returns: None
+    """
+    message = f"HTTP {status_code} fetching thumbnail from {provider_name} for ISBN {isbn}: {url}"
+    if status_code == requests.codes.not_found or (expected_status_codes and status_code in expected_status_codes):
+        current_app.logger.debug(f"{message} (no cover available)")
+        return
+    current_app.logger.error(f"{message} (unexpected status)")
+
+
+def fetch_url(url, provider_name, isbn, *, timeout=None, headers=None, expected_status_codes=None):
+    """Fetch a provider URL and return the response when it is usable.
+
+    Single entry point for every provider HTTP call, so that querying a metadata
+    endpoint gets the same error handling as fetching an image.
+
+    :param url: The URL to fetch.
+    :param provider_name: Name of the provider (for logging).
+    :param isbn: ISBN being processed (for logging).
+    :param timeout: Request timeout as ``(connect, read)`` in seconds. Keyword-only,
+        defaults to ``RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT`` from config (``(2, 10)``
+        if unset).
+    :param headers: Optional HTTP headers to include in the request. Keyword-only,
+        defaults to None.
+    :param expected_status_codes: Set of non-200 status codes that mean "no cover for
+        this ISBN" for this provider (e.g. ``{500}`` for BNF). ``404`` is always
+        treated as such. Keyword-only, defaults to None.
+    :returns: requests.Response or None - The response when the status is 200, None
+        on a connection error or on any other status.
+
+    Example::
+
+        if response := fetch_url("https://example.com/api?isbn=9780134685991", "Provider", "9780134685991"):
+            data = response.json()
+    """
+    if timeout is None:
+        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
+    try:
+        response = requests.get(url, headers=headers, timeout=timeout)
+    except (requests.RequestException, ValueError) as e:
+        current_app.logger.warning(f"Request error fetching thumbnail from {provider_name} for ISBN {isbn}: {e}")
+        return None
+
+    if response.status_code != requests.codes.ok:
+        _log_http_status(url, provider_name, isbn, response.status_code, expected_status_codes)
+        return None
+    return response
+
+
+def fetch_and_validate_thumbnail(url, provider_name, isbn, *, timeout=None, headers=None, expected_status_codes=None):
     """Fetch a thumbnail URL and validate it contains a real image.
 
     This helper function combines the common pattern of fetching a thumbnail URL,
@@ -112,13 +172,16 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers
     :param url: The thumbnail URL to fetch and validate.
     :param provider_name: Name of the provider (for logging).
     :param isbn: ISBN being processed (for logging).
-    :param timeout: Request timeout as ``(connect, read)`` in seconds. Defaults to
-        ``RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT`` from config (``(2, 10)`` if unset).
-    :param headers: Optional HTTP headers to include in the request. Defaults to None.
+    :param timeout: Request timeout as ``(connect, read)`` in seconds. Keyword-only,
+        defaults to ``RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT`` from config (``(2, 10)``
+        if unset).
+    :param headers: Optional HTTP headers to include in the request. Keyword-only,
+        defaults to None.
     :param expected_status_codes: Set of HTTP status codes that are normal non-200
         responses for this provider (e.g. ``{500}`` for BNF which returns 500 when no
         cover is found). These are logged at debug level with a "no cover available"
-        note rather than as an unexpected HTTP error. Defaults to None.
+        note rather than reported as an unexpected HTTP error. ``404`` always counts
+        as such. Keyword-only, defaults to None.
     :returns: bool - True if the URL returns a valid image, False otherwise.
 
     Example::
@@ -126,26 +189,17 @@ def fetch_and_validate_thumbnail(url, provider_name, isbn, timeout=None, headers
         if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "Provider", "9780134685991"):
             return url, "provider"
         # BNF returns 500 when no cover is available — treat it as expected
-        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "BNF", "978...",
+        if fetch_and_validate_thumbnail("https://example.com/cover.jpg", "bnf", "978...",
                                         timeout=(3, 10), expected_status_codes={500}):
             return url, "bnf"
 
     Note:
         Validates both HTTP status code and image content (dimensions, format).
     """
-    if timeout is None:
-        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
-    try:
-        response = requests.get(url, headers=headers, timeout=timeout)
-    except requests.RequestException as e:
-        current_app.logger.debug(f"Request error fetching thumbnail from {provider_name} for ISBN {isbn}: {e}")
-        return False
-
-    if response.status_code != requests.codes.ok:
-        if expected_status_codes is None or response.status_code not in expected_status_codes:
-            current_app.logger.debug(
-                f"HTTP {response.status_code} fetching thumbnail from {provider_name} for ISBN {isbn}: {url}"
-            )
+    response = fetch_url(
+        url, provider_name, isbn, timeout=timeout, headers=headers, expected_status_codes=expected_status_codes
+    )
+    if response is None:
         return False
     return validate_image_content(response.content, provider_name, isbn)
 

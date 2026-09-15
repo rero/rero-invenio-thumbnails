@@ -124,9 +124,35 @@ def test_internet_archive_isbn_to_ocaid_invalid_json(app, requests_mock):
     assert ocaid is None
 
 
-def test_internet_archive_isbn_to_ocaid_parse_error(app, requests_mock):
-    """Test isbn_to_ocaid returns None when the response raises a parse error."""
-    requests_mock.get(IA_SEARCH_RE, exc=ValueError("simulated JSON parse error"))
+def test_internet_archive_isbn_to_ocaid_transport_value_error(app, requests_mock):
+    """Test isbn_to_ocaid returns None when the transport raises a ValueError.
+
+    A ValueError escaping the fetch would be reported by handle_provider_errors as
+    a malformed ISBN, which is not what went wrong.
+    """
+    requests_mock.get(IA_SEARCH_RE, exc=ValueError("invalid URL"))
+
+    ocaid = InternetArchiveProvider().isbn_to_ocaid(ISBN)
+
+    assert ocaid is None
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        # docs as a mapping: truthy, but docs[0] raises KeyError
+        {"response": {"numFound": 1, "docs": {"identifier": OCAID}}},
+        # docs as a list of strings: docs[0].get raises AttributeError
+        {"response": {"numFound": 1, "docs": [OCAID]}},
+        # response as a string: .get raises AttributeError
+        {"response": "unavailable"},
+        # docs as a string: docs[0] is a character, .get raises AttributeError
+        {"response": {"docs": "unavailable"}},
+    ],
+)
+def test_internet_archive_isbn_to_ocaid_malformed_payload(app, requests_mock, payload):
+    """Test isbn_to_ocaid returns None when the search payload has an unexpected shape."""
+    requests_mock.get(IA_SEARCH_RE, content=json.dumps(payload).encode(), status_code=200)
 
     ocaid = InternetArchiveProvider().isbn_to_ocaid(ISBN)
 

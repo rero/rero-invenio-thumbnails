@@ -6,12 +6,12 @@
 from importlib.metadata import version as _pkg_version
 from urllib.parse import urlencode
 
-import requests
 from flask import current_app
 
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
+    fetch_url,
     handle_provider_errors,
     validate_image_content,
 )
@@ -59,23 +59,16 @@ class InternetArchiveProvider(BaseProvider):
         """
         params = {"q": f"isbn:{isbn}", "fl[]": "identifier", "output": "json", "rows": 1}
         url = f"{self.search_url}?{urlencode(params, doseq=True)}"
+        if (response := fetch_url(url, self.name, isbn, timeout=(3, 15), headers=self.headers)) is None:
+            return None
         try:
-            response = requests.get(url, headers=self.headers, timeout=(3, 15))
-            if response.status_code != requests.codes.ok:
-                current_app.logger.debug(
-                    f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {isbn}: {url}"
-                )
-                return None
             docs = response.json().get("response", {}).get("docs", [])
-            if docs:
-                return docs[0].get("identifier")
-        except requests.RequestException as exc:
-            current_app.logger.warning(f"{self.name} search failed for ISBN {isbn}: {exc}")
-        except (ValueError, KeyError) as exc:
-            current_app.logger.warning(f"{self.name} response parse error for ISBN {isbn}: {exc}")
-        return None
+            return docs[0].get("identifier") if docs else None
+        except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
+            current_app.logger.error(f"{self.name} response parse error for ISBN {isbn}: {exc}")
+            return None
 
-    @handle_provider_errors("Internet Archive")
+    @handle_provider_errors("internet archive")
     def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from Internet Archive.
 
@@ -105,21 +98,14 @@ class InternetArchiveProvider(BaseProvider):
             return None, self.name
 
         url = f"https://archive.org/services/img/{ocaid}"
-        try:
-            response = requests.get(url, headers=self.headers, timeout=(3, 30))
-        except requests.RequestException as exc:
-            current_app.logger.warning(f"Internet Archive cover fetch failed for ISBN {clean_isbn_value}: {exc}")
+        response = fetch_url(url, self.name, clean_isbn_value, timeout=(3, 30), headers=self.headers)
+        if response is None:
             return None, self.name
 
         # Reject redirect to the generic "not found" placeholder
         if "notfound" in response.url:
             return None, self.name
 
-        if response.status_code != requests.codes.ok:
-            current_app.logger.debug(
-                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
-            )
-            return None, self.name
         if validate_image_content(response.content, self.name, clean_isbn_value):
             return url, self.name
 

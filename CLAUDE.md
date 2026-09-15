@@ -55,7 +55,7 @@ rero_invenio_thumbnails/
 ├── views.py                  # Flask blueprint — /api/thumbnails/<isbn> endpoint
 └── contrib/
     ├── api.py                # BaseProvider abstract class
-    ├── utils.py              # clean_isbn, fetch_and_validate_thumbnail, validate_image_content, clean_all_cache
+    ├── utils.py              # clean_isbn, fetch_url, fetch_and_validate_thumbnail, validate_image_content, clean_all_cache
     ├── bnf/api.py            # BNF (openapi.bnf.fr)
     ├── dnb/api.py            # DNB via MVB cover URL (requires paid licence — disabled by default)
     ├── files/api.py          # Local filesystem fallback
@@ -69,15 +69,18 @@ rero_invenio_thumbnails/
 ### Adding a new provider
 
 1. Create `rero_invenio_thumbnails/contrib/<name>/api.py` with a class inheriting `BaseProvider`.
-2. Implement `get_thumbnail_url(self, isbn) -> tuple[str | None, str]` decorated with `@handle_provider_errors("<Name>")`.
+2. Implement `get_thumbnail_url(self, isbn) -> tuple[str | None, str]` decorated with `@handle_provider_errors("<name>")`, passing the same string as the class's `name` attribute — that string is what the logs carry.
 3. Register it as an entry point in `pyproject.toml` under `[project.entry-points."rero_invenio_thumbnails.providers"]`.
 4. Add the provider name to `RERO_INVENIO_THUMBNAILS_PROVIDERS` in `config.py` if it should be on by default.
 
 ### Key utilities (`contrib/utils.py`)
 
 - **`clean_isbn(isbn)`** — strips hyphens and spaces.
-- **`fetch_and_validate_thumbnail(url, provider_name, isbn, *, timeout, headers, expected_status_codes)`** — fetches the URL, validates the HTTP status and image content (dimensions ≥ `RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION`). Pass `expected_status_codes={500}` for providers like BNF that return 500 when no cover exists — those are silenced at debug level instead of logged as errors.
-- **`handle_provider_errors(provider_name)`** — decorator that catches `ValueError`, `requests.RequestException`, and unexpected exceptions and returns `(None, provider_name.lower())`.
+- **`fetch_url(url, provider_name, isbn, *, timeout, headers, expected_status_codes)`** — single entry point for every provider HTTP call; returns the `Response` on 200, `None` otherwise. The optional arguments are keyword-only. **Never call `requests.get()` directly in a provider**: a transient timeout would escape to `handle_provider_errors`, which logs at `exception` level. Pass `self.name` as `provider_name`, so the log text can be grepped against `RERO_INVENIO_THUMBNAILS_PROVIDERS`.
+- **`fetch_and_validate_thumbnail(...)`** — wraps `fetch_url` and validates the image content (dimensions ≥ `RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION`).
+- **Log levels** — `404` plus any `expected_status_codes` means "no cover" and stays at **debug** (pass `{500}` for BNF). Any other status is an **error**, and so is a response body that will not parse: both mean the provider is broken or has changed, which is what the error tracker exists to surface. An unreachable host is a **warning** — a timeout is transient and says nothing about the API. Never log either at debug: an outage then leaves no trace at all.
+- **Body parsing** — a provider that parses a response (`.json()`, JSONP) must guard it and log at **error** level. Unguarded, `requests.exceptions.JSONDecodeError` reaches `handle_provider_errors` and a 200 carrying an outage page is reported as a malformed ISBN.
+- **`handle_provider_errors(provider_name)`** — decorator that catches `requests.RequestException`, `ValueError`, and unexpected exceptions and returns `(None, provider_name.lower())`. The request clause **must** stay first: `requests.exceptions.JSONDecodeError` inherits from both, and a `ValueError` clause placed first swallows every failed body parse as an invalid ISBN.
 - **`validate_image_content(content, ...)`** — checks PIL can open the bytes and that both dimensions meet the minimum.
 - **`clean_all_cache()`** — deletes all `rero_thumbnails_*` keys from the Redis cache via `scan_iter`.
 
