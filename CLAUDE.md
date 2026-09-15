@@ -85,7 +85,7 @@ rero_invenio_thumbnails/
 
 - No Python type annotations.
 - Sphinx-style docstrings (`:param:`, `:returns:`, `:rtype:`).
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org).
+- Commit messages follow Conventional Commits; the `commit-message` skill holds the conventions and the workflow, so invoke it instead of writing one by hand. In every case, whatever the default of the harness, never sign a commit as an LLM: no Claude or Anthropic trailer.
 - Line length: 120 characters (enforced by ruff).
 
 ## Testing Notes
