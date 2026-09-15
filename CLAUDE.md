@@ -9,16 +9,13 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
 rero-invenio-thumbnails is a Flask/Invenio extension that resolves book cover thumbnails from multiple external providers (BNF, DNB, Google Books, Open Library, Amazon, Internet Archive, …) for a given ISBN. It exposes a REST API endpoint and caches results via `invenio-cache`.
 
-**Stack**: Python 3.12–3.14, Flask (Invenio), Redis (cache)
-**Package manager**: `uv` with `poethepoet` for task running
-
 ## Commands
 
 All commands run through uv's virtual env with `uv run`.
 
 ### Linting and formatting
 
-**IMPORTANT:** After editing files, run lint and format before committing.
+**IMPORTANT:** After editing files, run lint and format before committing — `scripts/tests.sh`, and so CI, fails on unformatted code.
 
 ```bash
 uv run poe lint     # ruff check
@@ -28,14 +25,10 @@ uv run poe format   # ruff format
 ### Testing
 
 ```bash
-uv run poe run_tests       # full suite (pip-audit + format + lint + pytest)
-uv run pytest tests/       # pytest only (faster, no audit/format step)
-uv run pytest tests/test_bnf_provider.py                    # single file
-uv run pytest tests/test_bnf_provider.py::test_bnf_init     # single test
-uv run pytest --external   # include tests that hit real external services
+uv run poe run_tests       # what CI runs: pip-audit + format check + lint + pytest
+uv run pytest tests/       # pytest only, faster
+uv run pytest --external   # also run the tests that hit real external services
 ```
-
-Tests also run against doctests in the source (`--doctest-modules`).
 
 ### Setup (done by humans)
 
@@ -43,59 +36,26 @@ Human developers bring up the required containers (Redis) and configure the Flas
 
 ## Architecture
 
-### Provider system
+Providers are plugins: each is a `BaseProvider` subclass discovered through the `rero_invenio_thumbnails.providers` entry point group. The registry in `api.py` keys them by the class's `name` attribute, **not** by the entry point name — so `RERO_INVENIO_THUMBNAILS_PROVIDERS` (which selects the active providers and their query order, first match wins) must list that attribute, and the string passed to `@handle_provider_errors` should repeat it, since it is what the logs and the returned provider name carry. A new provider is only reachable once it is both registered as an entry point and listed in that config key. Lookups that find nothing are cached too, so a miss is not retried until the entry expires.
 
-Providers are registered as Python entry points under `rero_invenio_thumbnails.providers` in `pyproject.toml`. At runtime `REROInvenioThumbnails.init_app` loads them dynamically; `RERO_INVENIO_THUMBNAILS_PROVIDERS` in the app config controls which providers are active and their query order (first match wins).
+### HTTP calls in providers
 
-```text
-rero_invenio_thumbnails/
-├── api.py                    # get_thumbnail_url() — iterates providers, handles cache
-├── config.py                 # All RERO_INVENIO_THUMBNAILS_* config keys
-├── ext.py                    # Invenio extension, loads providers from entry points
-├── views.py                  # Flask blueprint — /api/thumbnails/<isbn> endpoint
-└── contrib/
-    ├── api.py                # BaseProvider abstract class
-    ├── utils.py              # clean_isbn, fetch_url, fetch_and_validate_thumbnail, validate_image_content, clean_all_cache
-    ├── bnf/api.py            # BNF (openapi.bnf.fr)
-    ├── dnb/api.py            # DNB via MVB cover URL (requires paid licence — disabled by default)
-    ├── files/api.py          # Local filesystem fallback
-    ├── google_api/api.py     # Google Books API (requires API key)
-    ├── google_books/api.py   # Google Books scrape
-    ├── internet_archive/     # Internet Archive Open Library covers
-    ├── open_library/api.py   # Open Library
-    └── amazon/api.py         # Amazon product images
-```
-
-### Adding a new provider
-
-1. Create `rero_invenio_thumbnails/contrib/<name>/api.py` with a class inheriting `BaseProvider`.
-2. Implement `get_thumbnail_url(self, isbn) -> tuple[str | None, str]` decorated with `@handle_provider_errors("<name>")`, passing the same string as the class's `name` attribute — that string is what the logs carry.
-3. Register it as an entry point in `pyproject.toml` under `[project.entry-points."rero_invenio_thumbnails.providers"]`.
-4. Add the provider name to `RERO_INVENIO_THUMBNAILS_PROVIDERS` in `config.py` if it should be on by default.
-
-### Key utilities (`contrib/utils.py`)
-
-- **`clean_isbn(isbn)`** — strips hyphens and spaces.
-- **`fetch_url(url, provider_name, isbn, *, timeout, headers, expected_status_codes)`** — single entry point for every provider HTTP call; returns the `Response` on 200, `None` otherwise. The optional arguments are keyword-only. **Never call `requests.get()` directly in a provider**: a transient timeout would escape to `handle_provider_errors`, which logs at `exception` level. Pass `self.name` as `provider_name`, so the log text can be grepped against `RERO_INVENIO_THUMBNAILS_PROVIDERS`.
-- **`fetch_and_validate_thumbnail(...)`** — wraps `fetch_url` and validates the image content (dimensions ≥ `RERO_INVENIO_THUMBNAILS_MIN_IMAGE_DIMENSION`).
+- **Never call `requests.get()` directly** — go through `fetch_url` or `fetch_and_validate_thumbnail` in `contrib/utils.py`. A transient timeout would otherwise escape to `handle_provider_errors`, which logs at `exception` level. Pass `self.name` as `provider_name`, so the log text can be grepped against `RERO_INVENIO_THUMBNAILS_PROVIDERS`.
 - **Log levels** — `404` plus any `expected_status_codes` means "no cover" and stays at **debug** (pass `{500}` for BNF). Any other status is an **error**, and so is a response body that will not parse: both mean the provider is broken or has changed, which is what the error tracker exists to surface. An unreachable host is a **warning** — a timeout is transient and says nothing about the API. Never log either at debug: an outage then leaves no trace at all.
 - **Body parsing** — a provider that parses a response (`.json()`, JSONP) must guard it and log at **error** level. Unguarded, `requests.exceptions.JSONDecodeError` reaches `handle_provider_errors` and a 200 carrying an outage page is reported as a malformed ISBN.
-- **`handle_provider_errors(provider_name)`** — decorator that catches `requests.RequestException`, `ValueError`, and unexpected exceptions and returns `(None, provider_name.lower())`. The request clause **must** stay first: `requests.exceptions.JSONDecodeError` inherits from both, and a `ValueError` clause placed first swallows every failed body parse as an invalid ISBN.
-- **`validate_image_content(content, ...)`** — checks PIL can open the bytes and that both dimensions meet the minimum.
-- **`clean_all_cache()`** — deletes all `rero_thumbnails_*` keys from the Redis cache via `scan_iter`.
+- In `handle_provider_errors`, the `requests.RequestException` clause **must** stay first: `requests.exceptions.JSONDecodeError` inherits from both it and `ValueError`, so a `ValueError` clause placed first would swallow every failed body parse as an invalid ISBN.
 
 ## Code Style
 
 - No Python type annotations.
 - Sphinx-style docstrings (`:param:`, `:returns:`, `:rtype:`).
+- Every file starts with the two SPDX header comment lines.
+- Ruff is configured in `pyproject.toml`: `line-length = 120` under `[tool.ruff]`, the enabled rule sets under `[tool.ruff.lint]` and the pep257 convention under `[tool.ruff.lint.pydocstyle]`. `config.py` is excluded from ruff, and `tests/*.py` ignore F821 because `create_test_image` is injected into builtins.
 - Commit messages follow Conventional Commits; the `commit-message` skill holds the conventions and the workflow, so invoke it instead of writing one by hand. In every case, whatever the default of the harness, never sign a commit as an LLM: no Claude or Anthropic trailer.
-- Line length: 120 characters (enforced by ruff).
 
 ## Testing Notes
 
-- All tests are function-based (no class-based tests).
-- One test file per provider: `tests/test_<provider>_provider.py`.
-- Shared fixtures and helpers in `tests/conftest.py`. `create_test_image()` is injected into builtins and available in all test files without importing.
-- **No real HTTP requests** in unit tests — the `no_external_requests` autouse fixture blocks them. Use `requests_mock` for HTTP interactions.
-- Tests that need the real network are marked `@pytest.mark.external` and skipped by default; run with `--external` to enable them.
-- DNB is excluded from the default provider list (requires a paid MVB licence) — keep tests for it mocked.
+- All tests are function-based (no class-based tests), one file per provider.
+- **No real HTTP requests** in unit tests — the `no_external_requests` autouse fixture blocks them, and steps aside when the test asks for `requests_mock`, which is how provider HTTP is mocked. Tests that need the real network are marked `@pytest.mark.external` and skipped unless `--external` is passed.
+- `create_test_image()` comes from `tests/conftest.py` through builtins, so it needs no import.
+- pytest runs with `--doctest-modules`: a `>>>` example in a docstring is a test that must pass, which is why most docstring examples use a non-executed `Example::` block instead.
