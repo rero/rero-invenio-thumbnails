@@ -144,7 +144,7 @@ def test_google_books_get_thumbnail_url_multiple_isbns(app, requests_mock):
     assert provider_name == "google books"
 
 
-def test_google_books_get_thumbnail_url_unexpected_format(app, requests_mock):
+def test_google_books_get_thumbnail_url_unexpected_format(app, requests_mock, mock_logger):
     """Test thumbnail URL retrieval with unexpected JSONP format (no parentheses)."""
     requests_mock.get(re.compile(r".*"), text="invalid response without parentheses", status_code=200)
 
@@ -152,6 +152,9 @@ def test_google_books_get_thumbnail_url_unexpected_format(app, requests_mock):
 
     assert url is None
     assert provider_name == "google books"
+    # An endpoint that stopped returning a JSONP envelope is a changed API
+    reported = [call[0][0] for call in mock_logger.error.call_args_list]
+    assert any("Unexpected google books JSONP format" in msg for msg in reported)
 
 
 def test_google_books_get_thumbnail_url_generic_exception(app, requests_mock):
@@ -162,6 +165,22 @@ def test_google_books_get_thumbnail_url_generic_exception(app, requests_mock):
 
     assert url is None
     assert provider_name == "google books"
+
+
+def test_google_books_jsonp_parse_error_is_reported(app, requests_mock, mock_logger):
+    """Test that a broken JSONP envelope reaches error level.
+
+    A changed envelope is what the error tracker exists to catch: at warning level
+    it would never be seen.
+    """
+    requests_mock.get(re.compile(r".*"), text="book(invalid json)", status_code=200)
+
+    url, provider_name = GoogleBooksProvider().get_thumbnail_url("9780134685991")
+
+    assert url is None
+    assert provider_name == "google books"
+    reported = [call[0][0] for call in mock_logger.error.call_args_list]
+    assert any("Error parsing JSONP response" in msg for msg in reported)
 
 
 @pytest.mark.external

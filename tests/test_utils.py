@@ -16,6 +16,7 @@ from rero_invenio_thumbnails.contrib.files.api import FilesProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_all_cache,
     fetch_and_validate_thumbnail,
+    fetch_url,
     handle_provider_errors,
     validate_image_content,
 )
@@ -157,44 +158,43 @@ def test_fetch_and_validate_thumbnail_success(app, requests_mock):
     assert fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000") is True
 
 
-def test_fetch_and_validate_thumbnail_non_200_no_expected_codes(app, requests_mock):
-    """Test that a non-200 status is logged and returns False when expected_status_codes is not set."""
-    url = "https://example.com/cover.jpg"
-    requests_mock.get(url, status_code=404)
-
-    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
-        result = fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000")
-
-    assert result is False
-    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
-    assert any("HTTP 404" in msg for msg in logged_messages)
-
-
-def test_fetch_and_validate_thumbnail_expected_status_silenced(app, requests_mock):
-    """Test that a status code in expected_status_codes is NOT logged as an HTTP error."""
+def test_fetch_and_validate_thumbnail_expected_status_silenced(app, requests_mock, mock_logger):
+    """Test that a status code in expected_status_codes stays at debug level."""
     url = "https://example.com/cover.jpg"
     requests_mock.get(url, status_code=500)
 
-    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
-        result = fetch_and_validate_thumbnail(url, "BNF", "9780000000000", expected_status_codes={500})
+    result = fetch_and_validate_thumbnail(url, "bnf", "9780000000000", expected_status_codes={500})
 
     assert result is False
-    # 500 is declared as expected — no debug HTTP-error log should be emitted
-    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
-    assert all("HTTP 500" not in msg for msg in logged_messages)
+    # 500 is declared as expected — reported as "no cover", never as an error
+    logged_messages = [call[0][0] for call in mock_logger.debug.call_args_list]
+    assert any("HTTP 500" in msg and "no cover available" in msg for msg in logged_messages)
+    mock_logger.error.assert_not_called()
 
 
-def test_fetch_and_validate_thumbnail_unexpected_status_logged(app, requests_mock):
-    """Test that a status code NOT in expected_status_codes is still logged."""
+def test_fetch_and_validate_thumbnail_not_found_silenced(app, requests_mock, mock_logger):
+    """Test that a 404 is treated as "no cover" even without expected_status_codes."""
+    url = "https://example.com/cover.jpg"
+    requests_mock.get(url, status_code=404)
+
+    result = fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000")
+
+    assert result is False
+    logged_messages = [call[0][0] for call in mock_logger.debug.call_args_list]
+    assert any("HTTP 404" in msg and "no cover available" in msg for msg in logged_messages)
+    mock_logger.error.assert_not_called()
+
+
+def test_fetch_and_validate_thumbnail_unexpected_status_reported_as_error(app, requests_mock, mock_logger):
+    """Test that a status code NOT in expected_status_codes is reported at error level."""
     url = "https://example.com/cover.jpg"
     requests_mock.get(url, status_code=503)
 
-    with patch("rero_invenio_thumbnails.contrib.utils.current_app") as mock_app:
-        result = fetch_and_validate_thumbnail(url, "BNF", "9780000000000", expected_status_codes={500})
+    result = fetch_and_validate_thumbnail(url, "bnf", "9780000000000", expected_status_codes={500})
 
     assert result is False
-    # 503 is NOT in expected_status_codes → debug log should fire
-    logged_messages = [call[0][0] for call in mock_app.logger.debug.call_args_list]
+    # 503 is NOT expected → it signals a problem with the provider itself
+    logged_messages = [call[0][0] for call in mock_logger.error.call_args_list]
     assert any("HTTP 503" in msg for msg in logged_messages)
 
 
@@ -214,3 +214,104 @@ def test_fetch_and_validate_thumbnail_invalid_image(app, requests_mock):
     requests_mock.get(url, status_code=200, content=b"<html>not an image</html>")
 
     assert fetch_and_validate_thumbnail(url, "TestProvider", "9780000000000") is False
+
+
+def test_fetch_url_success(app, requests_mock):
+    """Test that a 200 response is returned to the caller."""
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, status_code=200, json={"ok": True})
+
+    response = fetch_url(url, "TestProvider", "9780000000000")
+
+    assert response is not None
+    assert response.json() == {"ok": True}
+
+
+def test_fetch_url_not_found_returns_none(app, requests_mock, mock_logger):
+    """Test that a 404 yields None without being reported as an error."""
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, status_code=404)
+
+    assert fetch_url(url, "TestProvider", "9780000000000") is None
+
+    mock_logger.error.assert_not_called()
+
+
+def test_fetch_url_request_exception_reported_at_warning(app, requests_mock, mock_logger):
+    """Test that an unreachable provider is visible at the default log level.
+
+    A provider that cannot be reached at all is an outage: at debug level it leaves
+    no trace, while a single unexpected status from the same host is an error.
+    """
+    import requests as req
+
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, exc=req.exceptions.ConnectTimeout("read timed out"))
+
+    assert fetch_url(url, "TestProvider", "9780000000000") is None
+
+    reported = [call[0][0] for call in mock_logger.warning.call_args_list]
+    assert any("Request error" in msg for msg in reported)
+    mock_logger.error.assert_not_called()
+
+
+def test_fetch_url_value_error_from_transport_returns_none(app, requests_mock, mock_logger):
+    """Test that a non-RequestException from the transport does not escape.
+
+    Letting it through would have handle_provider_errors report the provider
+    failure as an invalid ISBN.
+    """
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, exc=ValueError("invalid URL"))
+
+    assert fetch_url(url, "TestProvider", "9780000000000") is None
+
+    reported = [call[0][0] for call in mock_logger.warning.call_args_list]
+    assert any("Request error" in msg for msg in reported)
+
+
+def test_fetch_url_unexpected_status_reported_as_error(app, requests_mock, mock_logger):
+    """Test that a status meaning neither "cover" nor "no cover" is reported."""
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, status_code=403)
+
+    assert fetch_url(url, "bnf", "9780000000000") is None
+
+    reported = [call[0][0] for call in mock_logger.error.call_args_list]
+    assert any("HTTP 403" in msg for msg in reported)
+    # The report carries the configured provider name, so it can be grepped
+    # against RERO_INVENIO_THUMBNAILS_PROVIDERS
+    assert any("from bnf " in msg for msg in reported)
+
+
+def test_fetch_url_uses_configured_timeout(app, requests_mock):
+    """Test that the default timeout comes from the application config."""
+    url = "https://example.com/api?isbn=9780000000000"
+    requests_mock.get(url, status_code=200, json={"ok": True})
+    app.config["RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT"] = (5, 25)
+
+    with patch("rero_invenio_thumbnails.contrib.utils.requests.get") as mock_get:
+        mock_get.return_value.status_code = 200
+        fetch_url(url, "TestProvider", "9780000000000")
+
+    assert mock_get.call_args.kwargs["timeout"] == (5, 25)
+
+
+def test_handle_provider_errors_reports_json_failure_as_request_error(app, mock_logger):
+    """Test that a failed body parse is not reported as a malformed ISBN.
+
+    requests.exceptions.JSONDecodeError inherits from both RequestException and
+    ValueError, so the clause order in the decorator decides which one wins.
+    """
+    import requests as req
+
+    class _Provider:
+        @handle_provider_errors("test provider")
+        def get_thumbnail_url(self, isbn):
+            raise req.exceptions.JSONDecodeError("Expecting value", "<html>", 0)
+
+    assert _Provider().get_thumbnail_url("9780134685991") == (None, "test provider")
+
+    mock_logger.warning.assert_not_called()
+    reported = [call[0][0] for call in mock_logger.exception.call_args_list]
+    assert any("Request error" in msg for msg in reported)

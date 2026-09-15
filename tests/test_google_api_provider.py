@@ -134,6 +134,27 @@ def test_google_api_get_thumbnail_url_json_parsing(app, requests_mock):
     assert provider_name == "google api"
 
 
+def test_google_api_get_thumbnail_url_non_json_body(app, requests_mock, mock_logger):
+    """Test that a 200 carrying an outage page is reported, without blaming the ISBN.
+
+    A changed or broken API is what the error tracker exists to catch, so this must
+    reach error level and not be softened to a warning.
+    """
+    requests_mock.get(
+        "https://www.googleapis.com/books/v1/volumes",
+        text="<html>service unavailable</html>",
+        status_code=200,
+    )
+
+    url, provider_name = GoogleApiProvider().get_thumbnail_url("9780134685991")
+
+    assert url is None
+    assert provider_name == "google api"
+    reported = [call[0][0] for call in mock_logger.error.call_args_list]
+    assert any("response parse error" in msg for msg in reported)
+    mock_logger.warning.assert_not_called()
+
+
 @pytest.mark.external
 def test_google_api_returns_thumbnail_url_for_known_isbn(app):
     """Test that Google API returns a thumbnail URL for a known ISBN."""

@@ -55,6 +55,6 @@ class DnbProvider(BaseProvider):
             return None, self.name
 
         url = f"{self.base_url}?isbn={clean_isbn_value}"
-        if fetch_and_validate_thumbnail(url, "DNB", clean_isbn_value, timeout=(2, 10)):
+        if fetch_and_validate_thumbnail(url, self.name, clean_isbn_value, timeout=(2, 10)):
             return url, self.name
         return None, self.name

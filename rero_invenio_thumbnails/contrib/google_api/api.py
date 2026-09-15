@@ -3,13 +3,13 @@
 
 """Thumbnails GoogleApi."""
 
-import requests
 from flask import current_app
 
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
     fetch_and_validate_thumbnail,
+    fetch_url,
     handle_provider_errors,
 )
 
@@ -32,7 +32,7 @@ class GoogleApiProvider(BaseProvider):
         """
         self.base_url = "https://www.googleapis.com/books/v1/volumes"
 
-    @handle_provider_errors("Google API")
+    @handle_provider_errors("google api")
     def get_thumbnail_url(self, isbn):
         r"""Retrieve the thumbnail URL for a book from Google Books API.
 
@@ -57,14 +57,15 @@ class GoogleApiProvider(BaseProvider):
         # Clean ISBN (remove hyphens and spaces)
         clean_isbn_value = clean_isbn(isbn)
         url = f"{self.base_url}?q=isbn:{clean_isbn_value}"
-        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
-        response = requests.get(url, timeout=timeout)
-        if response.status_code != requests.codes.ok:
-            current_app.logger.debug(
-                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
-            )
+        if (response := fetch_url(url, self.name, clean_isbn_value)) is None:
             return None, self.name
-        data = response.json()
+        try:
+            # A 200 carrying an outage or captcha page is a provider failure, not a
+            # malformed ISBN, which is how handle_provider_errors would report it.
+            data = response.json()
+        except ValueError as exc:
+            current_app.logger.error(f"{self.name} response parse error for ISBN {clean_isbn_value}: {exc}")
+            return None, self.name
         # Only accept exactly one result to avoid ambiguity
         if data.get("totalItems") == 1 and data.get("items"):
             item = data["items"][0]

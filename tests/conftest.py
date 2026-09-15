@@ -9,6 +9,7 @@ fixtures are available.
 
 import contextlib
 from io import BytesIO
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -59,6 +60,20 @@ def pytest_configure(config):
     import builtins
 
     builtins.create_test_image = create_test_image
+
+
+@pytest.fixture
+def mock_logger(app):
+    """Mock the application logger, leaving the rest of the app in place.
+
+    Patching ``current_app`` as a whole also mocks ``current_app.config``, so the
+    code under test then reads a MagicMock where it expects a request timeout.
+
+    :param app: The Flask application fixture.
+    :returns: unittest.mock.MagicMock - The logger recording the emitted records.
+    """
+    with patch.object(app, "logger", MagicMock()) as logger:
+        yield logger
 
 
 class NetworkAccessError(RuntimeError):

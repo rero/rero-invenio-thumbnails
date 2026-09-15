@@ -5,13 +5,13 @@
 
 import json
 
-import requests
 from flask import current_app
 
 from rero_invenio_thumbnails.contrib.api import BaseProvider
 from rero_invenio_thumbnails.contrib.utils import (
     clean_isbn,
     fetch_and_validate_thumbnail,
+    fetch_url,
     handle_provider_errors,
 )
 
@@ -34,7 +34,7 @@ class GoogleBooksProvider(BaseProvider):
         """
         self.base_url = "https://books.google.com/books"
 
-    @handle_provider_errors("Google Books")
+    @handle_provider_errors("google books")
     def get_thumbnail_url(self, isbn):
         r"""Retrieve the preview URL for a book from Google Books.
 
@@ -59,12 +59,7 @@ class GoogleBooksProvider(BaseProvider):
         # Clean ISBN (remove hyphens and spaces)
         clean_isbn_value = clean_isbn(isbn)
         url = f"{self.base_url}?jscmd=viewapi&callback=book&bibkeys={clean_isbn_value}"
-        timeout = current_app.config.get("RERO_INVENIO_THUMBNAILS_HTTP_TIMEOUT", (2, 10))
-        response = requests.get(url, timeout=timeout)
-        if response.status_code != requests.codes.ok:
-            current_app.logger.debug(
-                f"HTTP {response.status_code} fetching thumbnail from {self.name} for ISBN {clean_isbn_value}: {url}"
-            )
+        if (response := fetch_url(url, self.name, clean_isbn_value)) is None:
             return None, self.name
         # JSONP comes as: book({...});
         text = response.text.strip()
@@ -79,8 +74,10 @@ class GoogleBooksProvider(BaseProvider):
                 ) and fetch_and_validate_thumbnail(thumbnail_url, self.name, clean_isbn_value):
                     return thumbnail_url, self.name
                 return None, self.name
-            except ValueError:
-                current_app.logger.error(f"Error parsing JSONP response for ISBN {clean_isbn_value}")
+            except ValueError as exc:
+                current_app.logger.error(f"Error parsing JSONP response for ISBN {clean_isbn_value}: {exc}")
                 return None, self.name
-        current_app.logger.debug(f"Unexpected {self.name} JSONP format for ISBN {clean_isbn_value}")
+        # No JSONP envelope at all: the endpoint changed shape, same signal as a
+        # body that will not parse.
+        current_app.logger.error(f"Unexpected {self.name} JSONP format for ISBN {clean_isbn_value}")
         return None, self.name

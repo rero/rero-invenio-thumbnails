@@ -20,6 +20,9 @@ class BnfProvider(BaseProvider):
 
     Covers documents published or distributed in France and received by
     the BnF under legal deposit (since 2010).
+
+    The service answers 500 when it holds no cover for an ISBN, so that status is
+    declared as expected; any other one is reported.
     """
 
     name = "bnf"
@@ -32,7 +35,6 @@ class BnfProvider(BaseProvider):
         """
         self.base_url = "https://openapi.bnf.fr/couverture/image/image/recupererImage"
         self.cover_page = 1  # 1 = front cover, 4 = back cover
-        # BNF API blocks the default python-requests User-Agent.
         self.headers = {
             "User-Agent": (
                 f"rero-invenio-thumbnails/{_pkg_version('rero-invenio-thumbnails')}"
@@ -40,7 +42,7 @@ class BnfProvider(BaseProvider):
             )
         }
 
-    @handle_provider_errors("BNF")
+    @handle_provider_errors("bnf")
     def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from BNF.
 
@@ -59,7 +61,7 @@ class BnfProvider(BaseProvider):
         url = f"{self.base_url}?ISBN={clean_isbn_value}&couverture={self.cover_page}"
 
         if fetch_and_validate_thumbnail(
-            url, "BNF", clean_isbn_value, timeout=(2, 10), headers=self.headers, expected_status_codes={500}
+            url, self.name, clean_isbn_value, timeout=(2, 10), headers=self.headers, expected_status_codes={500}
         ):
             return url, self.name
         return None, self.name

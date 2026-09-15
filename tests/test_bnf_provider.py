@@ -76,6 +76,33 @@ def test_bnf_get_thumbnail_url_server_error(app, requests_mock):
     assert name == "bnf"
 
 
+def test_bnf_get_thumbnail_url_forbidden_is_reported(app, requests_mock, mock_logger):
+    """Test that a 403, which blocks every ISBN, is reported at error level."""
+    requests_mock.get(_URL, status_code=403)
+
+    provider = BnfProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
+
+    assert url is None
+    assert name == "bnf"
+    logged_messages = [call[0][0] for call in mock_logger.error.call_args_list]
+    assert any("HTTP 403" in msg for msg in logged_messages)
+    # The report carries the configured provider name
+    assert any(f"from {BnfProvider.name} " in msg for msg in logged_messages)
+
+
+def test_bnf_get_thumbnail_url_server_error_not_reported(app, requests_mock, mock_logger):
+    """Test that the 500 meaning "no cover" never reaches error level."""
+    requests_mock.get(_URL, status_code=500)
+
+    provider = BnfProvider()
+    url, name = provider.get_thumbnail_url(_ISBN)
+
+    assert url is None
+    assert name == "bnf"
+    mock_logger.error.assert_not_called()
+
+
 def test_bnf_get_thumbnail_url_invalid_content(app, requests_mock):
     """Test that None is returned when the response is not an image."""
     requests_mock.get(_URL, status_code=200, headers={"Content-Type": "text/html"}, content=b"<html></html>")

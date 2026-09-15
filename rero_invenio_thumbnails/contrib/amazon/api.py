@@ -37,7 +37,7 @@ class AmazonProvider(BaseProvider):
         """
         self.base_url = "https://images-na.ssl-images-amazon.com/images/P/"
 
-    @handle_provider_errors("Amazon")
+    @handle_provider_errors("amazon")
     def get_thumbnail_url(self, isbn):
         """Retrieve the cover URL for a book from Amazon.
 
@@ -66,6 +66,6 @@ class AmazonProvider(BaseProvider):
             return None, self.name
 
         url = urljoin(self.base_url, f"{asin}.01.LZZZZZZZ.jpg")
-        if fetch_and_validate_thumbnail(url, "Amazon", clean_isbn_value):
+        if fetch_and_validate_thumbnail(url, self.name, clean_isbn_value):
             return url, self.name
         return None, self.name
