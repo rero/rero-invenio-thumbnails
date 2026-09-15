@@ -11,7 +11,7 @@ Books).
 
 ## Prerequisites
 
-- Python >=3.12, <3.13
+- Python >=3.14, <3.15
 - Redis (optional, for caching) if you want to enable `invenio_cache`
 
 ## Quick install

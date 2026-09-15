@@ -13,7 +13,6 @@ jobs:
       statuses: write
     strategy:
       matrix:
-        python-version: ["3.12", "3.13", "3.14"]
         dependencies: ["dev", "deploy"]
     steps:
 
@@ -26,7 +25,7 @@ jobs:
         cache-dependency-glob: uv.lock
 
     - name: Set up Python
-      run: uv python install ${{ matrix.python-version }}
+      run: uv python install 3.14
 
     - name: Update and install dependencies
       if: ${{ matrix.dependencies == 'dev' }}
@@ -40,7 +39,7 @@ jobs:
       run: uv run poe run_tests
 
     - name: Coveralls
-      if: ${{ matrix.dependencies == 'dev' && matrix.python-version == '3.12' }}
+      if: ${{ matrix.dependencies == 'dev' }}
       uses: coverallsapp/github-action@8d6379e14d29928660c4ba802d8e85393440b329 # v2.3.8
       continue-on-error: true
       with:
